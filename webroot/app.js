@@ -33,7 +33,7 @@ const state = {
 
 /* 公告纯文本网址（用户稍后提供，网站无标签、纯文本）。
    留空则不启用公告。填上 https 地址后每天最多弹一次。 */
-const ANNOUNCEMENT_URL = "";
+const ANNOUNCEMENT_URL = "./announce.md";   /* 临时测试 */
 
 /* 云更新配置（与公告同机制：可读模块 .git/update.txt、.git/download.txt，否则回退内置常量）。
    UPDATE_URL 指向纯文本版本号（如 1.1.0）；UPDATE_DOWNLOAD_URL 指向下载/更新页面。
@@ -41,7 +41,7 @@ const ANNOUNCEMENT_URL = "";
    DEFAULT_RELEASES_URL：未配置下载地址时的兜底更新页（GitHub 仓库创建后填入真实 Releases 地址）。 */
 const UPDATE_URL = "";
 const UPDATE_DOWNLOAD_URL = "";
-const DEFAULT_RELEASES_URL = "https://github.com/libpool/libpool/releases";
+const DEFAULT_RELEASES_URL = "https://github.com/MineACEx/libpool/releases";
 
 /* ---------------- 模块路径与 libman 调用 ---------------- */
 let MOD = "/data/adb/modules/libpool";
@@ -751,7 +751,7 @@ async function loadAnnouncement() {
     $("announcementTitleText").textContent = "公告";
     const badge = $("announcementBadge");
     if (badge) badge.textContent = "最新";
-    $("announcementContent").textContent = text;
+    $("announcementContent").innerHTML = renderMarkdown(text);   // 支持 Markdown 富文本
     openAnnouncement();
     localStorage.setItem("libpool-announce-date", today);
   } catch (e) {
@@ -773,10 +773,9 @@ function closeAnnouncement() {
 }
 
 function setupAnnouncementUI() {
-  $("closeAnnouncement").addEventListener("click", closeAnnouncement);
   $("okAnnouncement").addEventListener("click", closeAnnouncement);
   document.querySelector(".announcement-backdrop").addEventListener("click", closeAnnouncement);
-  // 弹窗内链接（云更新的下载链接）点击 → 跳转默认浏览器，不在 WebUI 内导航
+  // 弹窗内链接（云更新的下载链接、Markdown 里的链接）点击 → 跳转默认浏览器，不在 WebUI 内导航
   document.querySelector(".announcement-content").addEventListener("click", (e) => {
     const a = e.target.closest("a");
     if (!a) return;
@@ -861,13 +860,15 @@ async function checkUpdate() {
   $("announcementTitleText").textContent = "发现新版本";
   if (badge) badge.textContent = "更新";
   if (newer) {
-    const href = escapeHtml(dl || DEFAULT_RELEASES_URL);
-    $("announcementContent").innerHTML =
-      `检测到云端新版本 <b>v${escapeHtml(cloudV)}</b>（当前本地 v${escapeHtml(localV)}）。` +
-      `<br><br>${dl ? `<a class="update-link" href="${href}">前往下载 v${escapeHtml(cloudV)} →</a>` : `请到项目 Releases 页下载：<a class="update-link" href="${href}">GitHub Releases →</a>`}`;
+    const target = dl || DEFAULT_RELEASES_URL;
+    const label = dl ? `前往下载 v${cloudV} →` : `GitHub Releases →`;
+    $("announcementContent").innerHTML = renderMarkdown(
+      `检测到云端新版本 **v${cloudV}**（当前本地 v${localV}）。\n\n[${label}](${target})`
+    );
   } else {
-    $("announcementContent").innerHTML =
-      `云端版本 v${escapeHtml(cloudV)} 与本地 v${escapeHtml(localV)} 不一致（云端较旧）。`;
+    $("announcementContent").innerHTML = renderMarkdown(
+      `云端版本 v${cloudV} 与本地 v${localV} 不一致（云端较旧）。`
+    );
   }
   openAnnouncement();
 }
@@ -916,12 +917,20 @@ function setupScrollBlur() {
 function setupBackToTop() {
   const btn = $("backTop");
   if (!btn) return;
+  const tabsEl = document.querySelector(".tabs");
   const onScroll = () => {
     const doc = document.documentElement;
     const progress = window.scrollY / Math.max(1, doc.scrollHeight - window.innerHeight);
-    btn.classList.toggle("show", progress > 0.15);
+    // 扩展库页（store）滚动到 10% 就出现，其它页面 15%
+    const isStore = tabsEl && tabsEl.dataset.active === "store";
+    const threshold = isStore ? 0.10 : 0.15;
+    btn.classList.toggle("show", progress > threshold);
   };
   window.addEventListener("scroll", onScroll, { passive: true });
+  // 切换 Tab（已滚动）时立即重算，无需再滚动
+  if (tabsEl) {
+    new MutationObserver(onScroll).observe(tabsEl, { attributes: true, attributeFilter: ["data-active"] });
+  }
   onScroll();
   btn.addEventListener("click", () => window.scrollTo({ top: 0, behavior: "smooth" }));
 }
@@ -1038,6 +1047,75 @@ function escapeHtml(s) {
   return String(s == null ? "" : s)
     .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+}
+
+/* ---------------- 极简 Markdown 渲染（公告 / 云更新弹窗用） ----------------
+   先整体转义 HTML 再按行/内联转成富文本，保证注入安全。
+   支持：# 标题、**粗体**、*斜体*、`行内代码`、```围栏代码块```、
+   [链接](https://…)、- 无序列表、1. 有序列表、> 引用、--- 分隔线、段落。
+   链接统一加 update-link 类（蓝色下划线 + 点击跳默认浏览器）。 */
+function renderMarkdown(src) {
+  const esc = escapeHtml(src || "");
+  const inline = (s) =>
+    s
+      .replace(/`([^`]+)`/g, "<code>$1</code>")
+      .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
+      .replace(/\*([^*]+)\*/g, "<em>$1</em>")
+      .replace(/\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/g, '<a class="update-link" href="$2">$1</a>');
+
+  const lines = esc.split(/\r?\n/);
+  let html = "";
+  let listType = null;   // "ul" | "ol"
+  let inCode = false;
+  let codeBuf = [];
+
+  for (const raw of lines) {
+    if (/^```/.test(raw)) {   // 围栏代码块
+      if (!inCode) { inCode = true; codeBuf = []; }
+      else { html += "<pre><code>" + codeBuf.join("\n") + "</code></pre>"; inCode = false; }
+      continue;
+    }
+    if (inCode) { codeBuf.push(raw); continue; }
+
+    if (!raw.trim()) {         // 空行：结束列表
+      if (listType) { html += "</" + listType + ">"; listType = null; }
+      continue;
+    }
+
+    const h = /^(#{1,3})\s+(.*)$/.exec(raw);
+    if (h) {
+      if (listType) { html += "</" + listType + ">"; listType = null; }
+      html += "<h" + h[1].length + ">" + inline(h[2]) + "</h" + h[1].length + ">";
+      continue;
+    }
+    if (/^-{3,}$/.test(raw.trim())) {   // 分隔线
+      if (listType) { html += "</" + listType + ">"; listType = null; }
+      html += "<hr>";
+      continue;
+    }
+    if (/^&gt;\s?/.test(raw)) {         // 引用（转义后是 &gt;）
+      if (listType) { html += "</" + listType + ">"; listType = null; }
+      html += "<blockquote>" + inline(raw.replace(/^&gt;\s?/, "")) + "</blockquote>";
+      continue;
+    }
+    const ul = /^[-*]\s+(.*)$/.exec(raw);
+    if (ul) {
+      if (listType !== "ul") { if (listType) html += "</" + listType + ">"; html += "<ul>"; listType = "ul"; }
+      html += "<li>" + inline(ul[1]) + "</li>";
+      continue;
+    }
+    const ol = /^\d+[.)]\s+(.*)$/.exec(raw);
+    if (ol) {
+      if (listType !== "ol") { if (listType) html += "</" + listType + ">"; html += "<ol>"; listType = "ol"; }
+      html += "<li>" + inline(ol[1]) + "</li>";
+      continue;
+    }
+    if (listType) { html += "</" + listType + ">"; listType = null; }
+    html += "<p>" + inline(raw) + "</p>";
+  }
+  if (inCode) html += "<pre><code>" + codeBuf.join("\n") + "</code></pre>";
+  if (listType) html += "</" + listType + ">";
+  return html;
 }
 
 /* ---------------- 模糊预热（秒加载） ----------------

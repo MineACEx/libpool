@@ -11,6 +11,10 @@ tools/libman-arm
 # 运行时状态（设备上生成）
 webroot/data/state.json
 
+# 本地预览测试文件（不进公开仓库）
+webroot/announce.md
+webroot/version.txt
+
 # 源码层用户配置（安装后在模块 .git/ 下由 customize.sh 生成）
 module-config/
 
