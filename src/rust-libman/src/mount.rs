@@ -1,40 +1,70 @@
 //! 挂载/卸载库到 /system/bin 和 /system/lib
 //! Copyright (C) 2026 MINO · Himer (MineACE)
 //! SPDX-License-Identifier: Apache-2.0
-//! 使用 mount --bind 实现即时生效，无需重启。
-//! 卸载时 umount 即可。
+//!
+//! 挂载原理（重要）：
+//!   LibPool 的本质是往 /system/bin 添加系统里原本没有的命令（adb、fastboot 等）。
+//!   直接 bind mount 到 /system/bin/<name> 需要目标文件已存在，而 /system 只读、
+//!   touch 建占位也会失败（这就是此前 "bind mount 失败: No such file or directory" 的根因）。
+//!   因此正确做法是依赖 **Magisk / KernelSU 的 magic mount**：
+//!     把库文件复制到模块自己的 system/bin、system/lib 目录，
+//!     由宿主（Magisk/KernelSU/APatch）开机时把这些目录叠加（overlay）到系统 /system。
+//!     这样不需要目标存在、不需要写 /system，新增命令开箱即用。
+//!   对系统里已经存在的同名命令，再尝试 bind mount 做即时覆盖（bind 目标存在即可，立即生效）。
+//!
+//! 卸载时：从模块 system/ 目录移除文件（magic mount 叠加随即消失），并解除可能的 bind。
 //! 所有操作幂等。
 
 use crate::util;
+use std::path::Path;
 
-/// 挂载库：将 libs/<id>/bin/* → /system/bin/ 的 bind mount
-///         将 libs/<id>/lib/* → /system/lib/ 的 bind mount
+/// 挂载库：
+/// 1) 把 bin/lib 复制到模块 system/bin、system/lib（magic mount 源，开机叠加到 /system）；
+/// 2) 对系统已存在的同名命令尝试 bind mount 即时覆盖（失败不致命，由 magic mount 兜底）。
 pub fn mount_lib(dir: &str, id: &str) -> Result<(), String> {
-    // 确保挂载目录可写（magic mount 作用下 /system/bin 实际可写）
-    // 对于不需要 bind 的单文件，直接用 copy 更可靠——但用户要求"挂载"，
-    // 使用 bind mount 实现即时生效
     let lib_root = format!("{dir}/libs/{id}");
+    let sys_bin = format!("{dir}/system/bin");
+    let sys_lib = format!("{dir}/system/lib");
+    std::fs::create_dir_all(&sys_bin).map_err(|e| e.to_string())?;
+    std::fs::create_dir_all(&sys_lib).map_err(|e| e.to_string())?;
 
-    // 挂载 bin
     let bin_dir = format!("{lib_root}/bin");
-    if std::path::Path::new(&bin_dir).is_dir() {
-        let entries = fs_entries(&bin_dir)?;
-        for name in &entries {
-            // 部分文件可能已通过 post-fs-data 等直接放在 system/bin 中
+    let lib_dir = format!("{lib_root}/lib");
+
+    // 1) magic mount 源：复制到模块 system/（目标文件由宿主叠加进 /system）
+    if Path::new(&bin_dir).is_dir() {
+        for name in fs_entries(&bin_dir)? {
             let src = format!("{bin_dir}/{name}");
-            let dst = format!("/system/bin/{name}");
-            bind_mount(&src, &dst)?;
+            let dst = format!("{sys_bin}/{name}");
+            let _ = std::fs::copy(&src, &dst);
+            let _ = util::run(&format!("chmod 755 '{dst}'"), None);
+        }
+    }
+    if Path::new(&lib_dir).is_dir() {
+        for name in fs_entries(&lib_dir)? {
+            let src = format!("{lib_dir}/{name}");
+            let dst = format!("{sys_lib}/{name}");
+            let _ = std::fs::copy(&src, &dst);
         }
     }
 
-    // 挂载 lib
-    let lib_dir = format!("{lib_root}/lib");
-    if std::path::Path::new(&lib_dir).is_dir() {
-        let entries = fs_entries(&lib_dir)?;
-        for name in &entries {
+    // 2) bind mount 即时覆盖：仅对系统已存在的同名目标生效（新命令由 magic mount 提供）
+    if Path::new(&bin_dir).is_dir() {
+        for name in fs_entries(&bin_dir)? {
+            let src = format!("{bin_dir}/{name}");
+            let dst = format!("/system/bin/{name}");
+            if Path::new(&dst).exists() {
+                let _ = bind_mount(&src, &dst);
+            }
+        }
+    }
+    if Path::new(&lib_dir).is_dir() {
+        for name in fs_entries(&lib_dir)? {
             let src = format!("{lib_dir}/{name}");
             let dst = format!("/system/lib/{name}");
-            let _ = bind_mount(&src, &dst); // 非致命：lib 挂载失败可能因 lib 不存在
+            if Path::new(&dst).exists() {
+                let _ = bind_mount(&src, &dst);
+            }
         }
     }
 
@@ -53,36 +83,25 @@ fn fs_entries(dir: &str) -> Result<Vec<String>, String> {
     Ok(v)
 }
 
+/// bind mount（仅调用方确认目标已存在时使用；失败返回错误，由调用方决定是否忽略）。
 fn bind_mount(src: &str, dst: &str) -> Result<(), String> {
-    // 确保目标父目录存在
-    let parent = std::path::Path::new(dst).parent().unwrap_or(std::path::Path::new("/"));
-    let _ = std::fs::create_dir_all(parent);
-
     // 若目标已是 mount 点，先 umount 后重新 bind
-    // 检查是否已挂载：mount | grep dst
-    let (ok, out, _) = util::run(&format!("mount | grep ' on {dst} '"), Some(5)).unwrap_or((false, String::new(), String::new()));
+    let (ok, out, _) = util::run(&format!("mount | grep ' on {dst} '"), Some(5))
+        .unwrap_or((false, String::new(), String::new()));
     if ok && !out.trim().is_empty() {
         let _ = util::run(&format!("umount '{dst}'"), Some(10));
     }
 
     // 确保源存在
-    if !std::path::Path::new(src).exists() {
+    if !Path::new(src).exists() {
         return Err(format!("源文件不存在: {src}"));
     }
-
-    // 如果目标不存在，用 touch 创建占位
-    if !std::path::Path::new(dst).exists() {
-        let (ok, _, _) = util::run(&format!("touch '{dst}'"), Some(5))?;
-        if !ok {
-            // 创建失败可能是权限问题，尝试直接 bind（某些 KSU 内核允许）
-            eprintln!("创建占位失败: {dst}，尝试直接 bind mount");
-        }
+    if !Path::new(dst).exists() {
+        return Err(format!("目标不存在，由 magic mount 提供: {dst}"));
     }
 
-    // 执行 bind mount
     let (ok, _, err) = util::run(&format!("mount --bind '{src}' '{dst}'"), Some(15))?;
     if !ok {
-        // 尝试 noexec 降级参数
         let (ok2, _, err2) = util::run(&format!("mount -o bind,noexec '{src}' '{dst}'"), Some(15))?;
         if !ok2 {
             return Err(format!("bind mount 失败: {err} {err2}"));
@@ -91,22 +110,24 @@ fn bind_mount(src: &str, dst: &str) -> Result<(), String> {
     Ok(())
 }
 
-/// 卸载指定库的所有 bind mount
+/// 卸载指定库：
+/// 1) 从模块 system/ 目录移除文件（magic mount 叠加随即消失）；
+/// 2) 解除可能的 bind mount。
 pub fn unmount_lib_by_id(dir: &str, id: &str) -> Result<(), String> {
     // 从 libs/<id>/meta.json 中读取 bins 和 libs
     let meta_path = format!("{dir}/libs/{id}/meta.json");
-    if !std::path::Path::new(&meta_path).exists() {
+    if !Path::new(&meta_path).exists() {
         return Ok(()); // 未安装则视为已清理
     }
     let meta = crate::repo::get_meta(dir, id)?;
 
     for b in &meta.bins {
-        let dst = format!("/system/bin/{b}");
-        let _ = util::run(&format!("umount '{dst}'"), Some(10));
+        let _ = std::fs::remove_file(format!("{dir}/system/bin/{b}"));
+        let _ = util::run(&format!("umount '/system/bin/{b}'"), Some(10));
     }
     for l in &meta.libs {
-        let dst = format!("/system/lib/{l}");
-        let _ = util::run(&format!("umount '{dst}'"), Some(10));
+        let _ = std::fs::remove_file(format!("{dir}/system/lib/{l}"));
+        let _ = util::run(&format!("umount '/system/lib/{l}'"), Some(10));
     }
     println!("已卸载: {id}");
     Ok(())

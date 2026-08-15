@@ -6,7 +6,7 @@
 
 <p align="center">
   <b>补齐 Android 默认缺失的常用/热门库，一键挂载到 <code>/system/bin</code>（及 <code>/system/lib</code>）</b><br />
-  内置 KsuWebUI：322+ 扩展库 · 亮暗主题 · 自定义背景 · 云更新 · Rust 原生低功耗
+  内置 KsuWebUI：233 个扩展库 · 亮暗主题 · 自定义背景 · 云更新 · Rust 原生低功耗
 </p>
 
 <p align="center">[English](README_EN.md) · 简体中文</p>
@@ -31,10 +31,10 @@
 
 ## 特性
 
-- **322 个扩展库**（10 大分类），含常用实用库：`adb` / `fastboot`（android-tools）、`curl`、`git`、`htop`、`strace`、`gdb`、`tmux`、`rsync`、`tcpdump`、`nmap`、`jq`、`ffmpeg`、`nodejs`、`go`、`rust`、`python` 等
+- **233 个扩展库**（10 大分类），含常用实用库：`adb` / `fastboot`（android-tools）、`curl`、`git`、`htop`、`strace`、`gdb`、`tmux`、`rsync`、`jq`、`ffmpeg`、`nodejs`、`go`、`rust`、`python` 等
 - **18 个核心自带库**（curl / git / tar / unzip / awk 等基础库），开机自动就位
 - **自动跟随最新版**：库从 Termux 官方/镜像仓库解析最新版本安装，无需手动更新
-- **即时生效**：挂载用 bind mount，开关即用，无需重启；开机自动恢复
+- **标准 magic mount**：库文件写入模块 `system/` 目录，由 Magisk / KernelSU / APatch 开机叠加到 `/system`，新增命令开箱即用（无需写入只读的 /system）；系统已有同名命令则 bind mount 即时覆盖。开机自动重放挂载
 - **精简自由**：不想要的库一键删除，释放空间
 - **低功耗零常驻**：管理工具为 Rust 静态二进制，仅安装/挂载时运行后退出，空闲占用趋近 0
 - **32 位兼容**：armv7 设备自动使用 32 位原生二进制，其它架构回退 shell 脚本
@@ -73,7 +73,7 @@
 | 页面 | 说明 |
 |------|------|
 | 已挂载 | 查看已下载/已挂载的库，一键开关、删除精简 |
-| 扩展库 | 浏览 322 个库，搜索、按分类筛选、一键下载 |
+| 扩展库 | 浏览 233 个库，搜索、按分类筛选、一键下载 |
 | 设置 | 亮/暗主题、自定义背景（网址或相册）与壁纸模糊度、下载镜像、全部重置 |
 
 ### 公告（可选）
@@ -148,7 +148,7 @@ libpool/
 │   ├── libman-arm         # Rust 原生管理工具（armv7 32 位）
 │   └── libman.sh          # shell 兜底（极端环境）
 ├── webroot/               # KsuWebUI（完全离线可用）
-│   └── data/repos.json    # 322 库数据库
+│   └── data/repos.json    # 233 库数据库
 ├── repo_src/              # 构建源数据
 ├── src/rust-libman/       # Rust 源码
 └── scripts/               # 构建脚本

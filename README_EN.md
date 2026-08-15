@@ -5,8 +5,8 @@
 <h1 align="center">LibPool</h1>
 
 <p align="center">
-  <b>Install common/hot Android native libraries that are missing by default, and bind-mount them to <code>/system/bin</code> (and <code>/system/lib</code>) with one tap.</b><br />
-  Ships KsuWebUI: 322+ libraries · light/dark theme · custom wallpaper · cloud update · Rust native, low power
+  <b>Install common/hot Android native libraries that are missing by default, and expose them under <code>/system/bin</code> (and <code>/system/lib</code>) with one tap (standard magic-mount overlay).</b><br />
+  Ships KsuWebUI: 233 libraries · light/dark theme · custom wallpaper · cloud update · Rust native, low power
 </p>
 
 <p align="center">English · [简体中文](README.md)</p>
@@ -31,10 +31,10 @@ Supports: **Magisk** / **KernelSU** / **APatch**, including **32-bit (armv7)** d
 
 ## Features
 
-- **322 extension libraries** (10 categories), including useful tools: `adb` / `fastboot` (android-tools), `curl`, `git`, `htop`, `strace`, `gdb`, `tmux`, `rsync`, `tcpdump`, `nmap`, `jq`, `ffmpeg`, `nodejs`, `go`, `rust`, `python`, and more
+- **233 extension libraries** (10 categories), including useful tools: `adb` / `fastboot` (android-tools), `curl`, `git`, `htop`, `strace`, `gdb`, `tmux`, `rsync`, `jq`, `ffmpeg`, `nodejs`, `go`, `rust`, `python`, and more
 - **18 built-in core libraries** (curl / git / tar / unzip / awk …) auto-installed at boot
 - **Always latest**: libraries are resolved and installed at the newest version from Termux official/mirror repos — no manual updating
-- **Instant effect**: bind mounts take effect immediately — toggle on/off without rebooting; restored at boot automatically
+- **Standard magic mount**: library files are written into the module's `system/` directory and overlaid onto `/system` at boot by Magisk / KernelSU / APatch — new commands just work without writing to the read-only /system; existing system commands with the same name are instantly overridden via bind mount. Mounts are replayed automatically at boot
 - **Slim freely**: delete any library you don't want to free space
 - **Low power, zero resident**: the manager is a static Rust binary that runs only during install/mount and exits — near-zero idle footprint
 - **32-bit compatible**: armv7 devices automatically use the 32-bit native binary; other architectures fall back to a shell script
@@ -73,7 +73,7 @@ Open **KernelSU Manager → Modules → LibPool → WebUI**:
 | Page | Description |
 |------|-------------|
 | Mounted | See downloaded/mounted libraries; toggle and delete them |
-| Store | Browse 322 libraries, search, filter by category, one-tap download |
+| Store | Browse 233 libraries, search, filter by category, one-tap download |
 | Settings | Light/dark theme, custom wallpaper (URL or gallery) + wallpaper blur, download mirror, full reset |
 
 ### Announcement (optional)
@@ -147,7 +147,7 @@ libpool/
 │   ├── libman-arm         # Rust native manager (armv7 32-bit)
 │   └── libman.sh          # Shell fallback (extreme environments)
 ├── webroot/               # KsuWebUI (fully offline)
-│   └── data/repos.json    # 322-library database
+│   └── data/repos.json    # 233-library database
 ├── repo_src/              # Build source data
 ├── src/rust-libman/       # Rust source
 └── scripts/               # Build scripts
