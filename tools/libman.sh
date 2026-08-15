@@ -689,36 +689,62 @@ install_from_termux() {
         err "下载 .deb 失败: $deb_url"
         return 1
     fi
+    logfile "已下载 .deb: $pkg（$(wc -c < "$deb" 2>/dev/null) 字节）"
 
-    # 5) 从 .deb（ar 归档）中提取 data.tar.xz，再解压 xz 得到 data.tar
-    local data_xz="$tmp/data.tar.xz"
-    local data_tar="$tmp/data.tar"
-    if ! extract_deb_member "$deb" "data.tar.xz" "$data_xz"; then
-        # 退回提取 data.tar.gz（某些较旧包）
-        local data_gz="$tmp/data.tar.gz"
-        if ! extract_deb_member "$deb" "data.tar.gz" "$data_gz"; then
-            err "无法从 .deb 提取 data 归档"
-            return 1
+    # 5) 从 .deb（ar 归档）提取 data 归档（支持 xz / gz / zst）并解包
+    local data_arch="" data_ext="" d
+    for ext in xz gz zst; do
+        d="$tmp/data.tar.$ext"
+        if extract_deb_member "$deb" "data.tar.$ext" "$d" 2>/dev/null && [ -s "$d" ]; then
+            data_arch="$d"
+            data_ext="$ext"
+            break
         fi
-        if ! ( cd "$tmp" && tar -xzf "$data_gz" ); then
-            err "解包 data.tar.gz 失败"
-            return 1
-        fi
-        return 0
-    fi
-    if ! xz_decompress "$data_xz" "$data_tar"; then
-        err "解压 data.tar.xz 失败"
+    done
+    if [ -z "$data_arch" ]; then
+        err "无法从 .deb 提取 data 归档（xz/gz/zst 均未找到）"
         return 1
     fi
-
-    # 6) 解压 data.tar 到 tmp 根目录（去掉 ./ 前缀）
-    if ! ( cd "$tmp" && tar -xf "$data_tar" 2>/dev/null ); then
-        # 退回 busybox tar
-        if ! ( cd "$tmp" && busybox tar -xf "$data_tar" 2>/dev/null ); then
-            err "解包 data.tar 失败"
-            return 1
-        fi
-    fi
+    logfile "已提取 data.tar.$data_ext（$(wc -c < "$data_arch" 2>/dev/null) 字节）"
+    case "$data_ext" in
+        xz)
+            if ! xz_decompress "$data_arch" "$tmp/data.tar"; then
+                err "解压 data.tar.xz 失败"
+                return 1
+            fi
+            # 6) 解压 data.tar 到 tmp 根目录（去掉 ./ 前缀）
+            if ! ( cd "$tmp" && tar -xf "$tmp/data.tar" 2>/dev/null ); then
+                if ! ( cd "$tmp" && busybox tar -xf "$tmp/data.tar" 2>/dev/null ); then
+                    err "解包 data.tar 失败"
+                    return 1
+                fi
+            fi
+            ;;
+        gz)
+            if ! ( cd "$tmp" && tar -xzf "$data_arch" 2>/dev/null ); then
+                if ! ( cd "$tmp" && busybox tar -xzf "$data_arch" 2>/dev/null ); then
+                    err "解包 data.tar.gz 失败"
+                    return 1
+                fi
+            fi
+            ;;
+        zst)
+            # zstd：优先让 tar 自动识别；否则 zstd/unzstd 解压后再 tar（尽力而为）
+            if ! ( cd "$tmp" && tar -xf "$data_arch" 2>/dev/null ); then
+                if has_cmd zstd; then
+                    zstd -dc "$data_arch" > "$tmp/data.tar" 2>/dev/null || true
+                elif has_cmd unzstd; then
+                    unzstd -dc "$data_arch" > "$tmp/data.tar" 2>/dev/null || true
+                fi
+                if [ ! -s "$tmp/data.tar" ] || ! ( cd "$tmp" && tar -xf "$tmp/data.tar" 2>/dev/null ); then
+                    if ! ( cd "$tmp" && busybox tar -xf "$data_arch" 2>/dev/null ); then
+                        err "解包 data.tar.zst 失败"
+                        return 1
+                    fi
+                fi
+            fi
+            ;;
+    esac
     return 0
 }
 
@@ -947,10 +973,19 @@ install_lib() {
 
     # 已安装则提示（verbose 模式下）
     if is_installed "$id"; then
-        if [ "$verbose" = "1" ]; then
-            echo "已安装过: $id，可先 remove 再重装"
+        # 自愈：若上次只写了空壳（0 bin 0 lib），说明那次安装失败，删掉重装
+        local ob ol
+        ob=$(get_meta "$id" "bins" "")
+        ol=$(get_meta "$id" "libs" "")
+        if [ -z "$ob" ] && [ -z "$ol" ]; then
+            logfile "检测到 $id 安装为空壳（无 bin/lib），删除并重装"
+            rm -rf "$MODDIR/libs/$id" 2>/dev/null || true
+        else
+            if [ "$verbose" = "1" ]; then
+                echo "已安装过: $id，可先 remove 再重装"
+            fi
+            return 0
         fi
-        return 0
     fi
 
     # 读取仓库条目
@@ -1092,6 +1127,14 @@ install_lib() {
         rm -rf "$tmp" 2>/dev/null || true
         return 1
     }
+
+    # 记录安装结果（供日志排查：bin/lib 是否为空；空则列出 tmp 内容定位解压问题）
+    logfile "install_lib($id): bins=[$final_bins] libs=[$installed_libs]"
+    if [ -z "$final_bins" ] && [ -z "$installed_libs" ]; then
+        logfile "警告: $id 未装出任何文件，tmp 目录结构:"
+        ls -la "$tmp" >> "$LMAN_LOG" 2>/dev/null || true
+        [ -d "$tmp/data" ] && ls -laR "$tmp/data" >> "$LMAN_LOG" 2>/dev/null || true
+    fi
 
     # 清理临时目录
     rm -rf "$tmp" 2>/dev/null || true

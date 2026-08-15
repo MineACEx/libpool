@@ -307,7 +307,7 @@ body {
 }
 .search-box input { border-radius: var(--r-input); corner-shape: var(--radius-shape, squircle); }
 .lib-icon { border-radius: var(--r-sm); corner-shape: var(--radius-shape, squircle); }
-.brand-icon { border-radius: calc(var(--r-card) - 4px); corner-shape: var(--radius-shape, squircle); }
+/* 品牌图标：PNG 已自带圆角，容器不再套遮罩/裁切，避免双重圆角 */
 .mirror-input { border-radius: var(--r-sm); corner-shape: var(--radius-shape, squircle); }
 
 /* ---------- 触摸优先动效（手机/平板核心：按压反馈 + 涟漪打断） ----------
@@ -378,14 +378,11 @@ body {
   text-align: center;
 }
 
-/* 品牌图标：仅圆角遮罩（不加描边/阴影/底图），图标完整显示于圆角内 */
+/* 品牌图标：PNG 已自带圆角，仅完整显示，不再加遮罩/描边/阴影/底图 */
 .brand-icon {
   position: relative;
   width: 88px; height: 88px;
   display: block;
-  overflow: hidden;
-  border-radius: var(--r-card);
-  corner-shape: var(--radius-shape, squircle);
 }
 
 .brand-name {
@@ -1053,9 +1050,9 @@ body {
   backdrop-filter: blur(0px);
   -webkit-backdrop-filter: blur(0px);
   transition:
-    opacity 0.5s ease,
-    backdrop-filter 0.6s var(--ease-ios),
-    -webkit-backdrop-filter 0.6s var(--ease-ios);
+    opacity 0.4s var(--ease-out),
+    backdrop-filter 0.45s var(--ease-ios),
+    -webkit-backdrop-filter 0.45s var(--ease-ios);
 }
 .announcement.open .announcement-backdrop { opacity: 1; backdrop-filter: blur(22px) saturate(170%); -webkit-backdrop-filter: blur(22px) saturate(170%); }
 .announcement-card {
@@ -1069,11 +1066,11 @@ body {
   -webkit-backdrop-filter: blur(30px) saturate(180%);
   border: 1px solid var(--card-border-fine);
   box-shadow: 0 24px 80px rgba(0, 0, 0, 0.4);
-  transform: translateY(18px) scale(0.95);
+  transform: translateY(14px) scale(0.96);
   opacity: 0;
   transition:
-    transform 0.5s var(--ease-out),
-    opacity 0.35s ease;
+    transform 0.45s var(--ease-out),
+    opacity 0.45s var(--ease-out);   /* 透明度与位移同时长同曲线，进出场连贯一体 */
 }
 .announcement.open .announcement-card { transform: translateY(0) scale(1); opacity: 1; }
 .announcement-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }

@@ -82,22 +82,18 @@ async function normalizeModule() {
   } catch (e) { /* 自愈失败不阻断启动 */ }
 }
 
-/** 自愈：确保管理工具可执行。
+/** 自愈：确保管理工具可用。
     zip 由 Windows 打包时通常不带 Unix +x 位，管理器解压后 tools/* 全是 644，
     test -x 会把 libman 误判成"管理工具未就绪"（服务/预检/诊断三处都报不可执行，
-    但用 sh 直接跑其实正常）。WebUI 的 exec 以 root 运行，这里先强制 chmod 755 再重测，
-    打开页面即修复，无需重装/重启。 */
+    但用 sh 直接跑其实正常）。WebUI 的 exec 以 root 运行，这里先强制 chmod 755。
+    之后统一走 shell 兜底：原生二进制为旧版、当前环境无法重新编译，
+    libman.sh 会把安装/下载全过程写入 logs/libman.log，可完整追踪根因。 */
 async function ensureToolsExec() {
   if (state.inPreview || !MOD) return;
   try {
     await exec(`chmod 755 ${MOD}/tools 2>/dev/null; chmod 755 ${MOD}/tools/* 2>/dev/null`);
-    const r = await exec(`test -x ${MOD}/tools/libman && echo native || test -x ${MOD}/tools/libman.sh && echo shell`);
-    const m = /(native|shell)/.exec(r.stdout || "");
-    if (m) {
-      const nowNative = m[1] === "native";
-      if (nowNative !== useNative) logWebui(`工具就绪: ${m[1]}（已补 +x 权限）`);
-      useNative = nowNative;
-    }
+    useNative = false; // 统一 shell 兜底（可追踪、无需 +x 位）
+    logWebui("已统一使用 libman.sh（shell 兜底，操作全程记入 logs/libman.log）");
   } catch (e) { /* 自愈失败不阻断启动 */ }
 }
 
@@ -376,6 +372,7 @@ async function installLib(id) {
     if (state.cancelRequested) return; // 用户已取消
     hideOverlay();
     logWebui(`下载完成: ${id}`);
+    await verifyInstall(id); // 校验安装产物（bin/lib 是否真的装出了文件）
     showToast("下载完成");
     await refresh();
     pulseCard(id); // 安装成功：对应卡片脉冲光晕（纯视觉）
@@ -385,6 +382,21 @@ async function installLib(id) {
     if (!state.cancelRequested) showToast("下载失败：" + e.message, true);
     console.error(e);
   }
+}
+
+/** 校验安装产物：检查 libs/<id>/bin 与 lib 是否真的装出了文件。
+    若为空说明下载/解压/搬运某一步出问题，提示并记录，避免"假成功"。 */
+async function verifyInstall(id) {
+  if (state.inPreview || !MOD) return;
+  try {
+    const ls = await exec(`ls -l ${MOD}/libs/${id}/bin ${MOD}/libs/${id}/lib 2>&1`);
+    logWebui(`安装产物(${id}):\n${ls.stdout || ""}`);
+    const has = await exec(`find ${MOD}/libs/${id}/bin ${MOD}/libs/${id}/lib -type f 2>/dev/null | head -n 1`);
+    if (!(has.stdout || "").trim()) {
+      logWebui(`警告: ${id} 安装后 bin/lib 为空，可能下载/解压失败，详见 logs/libman.log`);
+      showToast("下载完成，但 bin/lib 为空，请查日志", true);
+    }
+  } catch (e) { /* ignore */ }
 }
 
 async function cancelDownload() {
