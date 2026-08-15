@@ -1,0 +1,9 @@
+# LibPool · 库池 — SELinux 规则
+# Copyright (C) 2026 MINO · Himer (MineACE)
+# SPDX-License-Identifier: Apache-2.0
+#
+# 允许 libpool 的 bind mount 到 /system 分区。
+# 规则最小化：仅授予挂载与执行所需权限，不授予额外特权。
+allow libpool_t system_file_t:file { mounton read write };
+allow libpool_t system_file_t:dir { mounton read write };
+allow libpool_t system_file_t:file { execute execute_no_trans };

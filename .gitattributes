@@ -1,0 +1,23 @@
+# 统一文本换行：仓库内一律 LF，避免 Windows 检出成 CRLF 破坏 Android shell 脚本
+* text=auto
+
+# shell / 脚本 / 文本类必须保持 LF（Android 上 CRLF 会报错）
+*.sh text eol=lf
+*.ps1 text eol=lf
+*.py  text eol=lf
+*.rs  text eol=lf
+*.toml text eol=lf
+*.cargo text eol=lf
+*.js  text eol=lf
+*.html text eol=lf
+*.css text eol=lf
+*.json text eol=lf
+*.md  text eol=lf
+*.txt text eol=lf
+*.yml text eol=lf
+*.prop text eol=lf
+*.rule text eol=lf
+
+# 二进制文件不转换
+*.png binary
+*.zip binary

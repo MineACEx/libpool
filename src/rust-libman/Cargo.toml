@@ -1,0 +1,17 @@
+[package]
+name = "libman"
+version = "1.0.0"
+edition = "2021"
+description = "LibPool native manager - Rust, static aarch64 musl"
+
+# 零依赖：仅 std。
+# 原因：Windows 开发机无 MSVC/SDK，无法编译带 proc-macro（serde_derive）的 host 依赖；
+# 去掉后 host 侧零编译零链接，aarch64-musl 用 rust-lld 自包含链接即可。
+[dependencies]
+
+[profile.release]
+opt-level = "z"
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = true

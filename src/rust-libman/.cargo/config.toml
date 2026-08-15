@@ -1,0 +1,12 @@
+# LibPool libman 交叉编译配置
+# 目标：aarch64-unknown-linux-musl（纯静态，无 glibc 依赖）
+# 链接器使用 rustup 自带的 rust-lld，避免本机需要额外安装 C 工具链（gcc/clang）。
+# 自包含链接：使用 musl 目标自带的 crt 对象 + libc.a + libunwind.a。
+
+[target.aarch64-unknown-linux-musl]
+linker = "C:\\Users\\Administrator\\.rustup\\toolchains\\stable-x86_64-pc-windows-msvc\\lib\\rustlib\\x86_64-pc-windows-msvc\\bin\\rust-lld.exe"
+rustflags = ["-C", "link-self-contained=yes"]
+
+[target.armv7-unknown-linux-musleabihf]
+linker = "C:\\Users\\Administrator\\.rustup\\toolchains\\stable-x86_64-pc-windows-msvc\\lib\\rustlib\\x86_64-pc-windows-msvc\\bin\\rust-lld.exe"
+rustflags = ["-C", "link-self-contained=yes"]

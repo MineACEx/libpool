@@ -1,0 +1,22 @@
+# ---- 构建产物（源码仓库不入库） ----
+dist/
+module/
+src/rust-libman/target/
+*.zip
+
+# Rust 原生二进制（由 scripts/ 构建生成，或从 Releases 下载）
+tools/libman
+tools/libman-arm
+
+# 运行时状态（设备上生成）
+webroot/data/state.json
+
+# 源码层用户配置（安装后在模块 .git/ 下由 customize.sh 生成）
+module-config/
+
+# ---- 系统 / 编辑器 ----
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp

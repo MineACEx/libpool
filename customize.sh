@@ -1,0 +1,80 @@
+#!/system/bin/sh
+# =============================================================================
+# LibPool · 库池 — customize.sh（安装脚本）
+# Copyright (C) 2026 MINO · Himer (MineACE)
+# SPDX-License-Identifier: Apache-2.0
+#
+# 安全设计（重要）：
+#   - 本脚本必须在数秒内返回，绝不阻塞安装流程；
+#   - 所有耗时任务（装核心库）一律 nohup 后台执行；
+#   - 任何步骤失败都不影响系统启动：禁用本模块即可完全恢复。
+# =============================================================================
+
+MODDIR=${0%/*}
+export LIBPOOL_DIR="$MODDIR"
+
+# 检测设备架构：aarch64/arm64 用原生二进制，其余（armv7/x86/x86_64）用 arm 二进制或 shell 兜底
+case "$(uname -m)" in
+  aarch64|arm64) ARCH_BIN="libman" ;;
+  armv7l|armv7|armhf|arm) ARCH_BIN="libman-arm" ;;
+  *) ARCH_BIN="" ;; # 其它架构一律用 shell 兜底
+esac
+echo "LibPool: 设备架构 $(uname -m) (bin=$ARCH_BIN)" >> "$MODDIR/install.log" 2>/dev/null
+
+# 初始化目录结构
+mkdir -p "$MODDIR/libs" 2>/dev/null
+mkdir -p "$MODDIR/tools" 2>/dev/null
+mkdir -p "$MODDIR/webroot/data" 2>/dev/null
+mkdir -p "$MODDIR/system/bin" 2>/dev/null
+mkdir -p "$MODDIR/system/lib" 2>/dev/null
+
+# 公告配置目录（用户可在 .git/url.txt 手动填写公告纯文本网址）
+mkdir -p "$MODDIR/.git" 2>/dev/null
+if [ ! -f "$MODDIR/.git/url.txt" ]; then
+  echo "# 在此填写公告纯文本网址（每行一个，取第一个有效 http(s) 链接）" > "$MODDIR/.git/url.txt"
+fi
+# 云更新配置（可选：update.txt = 云端版本号纯文本网址；download.txt = 下载页面网址）
+if [ ! -f "$MODDIR/.git/update.txt" ]; then
+  echo "# 在此填写云端版本号纯文本网址（内容为一个版本号，如 1.1.0）" > "$MODDIR/.git/update.txt"
+fi
+if [ ! -f "$MODDIR/.git/download.txt" ]; then
+  echo "# 在此填写下载/更新页面网址（点击更新弹窗中的链接时跳转默认浏览器）" > "$MODDIR/.git/download.txt"
+fi
+
+# 初始化状态文件（若不存在；损坏时重置，避免 libman 崩溃）
+if [ ! -s "$MODDIR/webroot/data/state.json" ]; then
+  echo '{"libs":{}}' > "$MODDIR/webroot/data/state.json"
+fi
+
+# 标记为 KernelSU/APatch 模块（供 KSU WebUI 使用）
+chmod 755 "$MODDIR/webroot" 2>/dev/null
+chmod 755 "$MODDIR" 2>/dev/null
+
+# 设置可执行权限
+chmod 755 "$MODDIR/tools"/* 2>/dev/null
+chmod 755 "$MODDIR/libs" 2>/dev/null
+
+# 选择可用的管理工具（原生 > arm 原生 > shell 兜底）
+BIN=""
+for cand in "$MODDIR/tools/$ARCH_BIN" "$MODDIR/tools/libman" "$MODDIR/tools/libman.sh"; do
+  if [ -f "$cand" ] && [ -x "$cand" ]; then
+    BIN="$cand"
+    break
+  fi
+done
+
+if [ -n "$BIN" ] && [ -x "$BIN" ] && [ "${BIN##*.}" != "sh" ]; then
+  # 后台装 core 库，绝不阻塞安装
+  LIBPOOL_DIR="$MODDIR" nohup "$BIN" ensure-core >> "$MODDIR/install.log" 2>&1 &
+  echo "LibPool: 已用 $BIN 后台安装核心库" >> "$MODDIR/install.log"
+elif [ -f "$MODDIR/tools/libman.sh" ]; then
+  chmod 755 "$MODDIR/tools/libman.sh"
+  # shell 兜底：核心库安装较重，交给首次开机 service.sh 处理，避免拖慢安装
+  echo "LibPool: 使用 shell 兜底（$ARCH_BIN 缺失）" >> "$MODDIR/install.log"
+fi
+
+# 清理临时文件
+rm -f "$MODDIR/update" 2>/dev/null
+
+echo "LibPool 安装完成！"
+echo "请重启设备或使用 KernelSU 管理器打开模块 WebUI 进行库管理。"

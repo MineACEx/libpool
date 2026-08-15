@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: 常见问题 FAQ
+    url: ./blob/main/README.md#常见问题
+    about: 先看看 README 里的常见问题，也许已经有答案了

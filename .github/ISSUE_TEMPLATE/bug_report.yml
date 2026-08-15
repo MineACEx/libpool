@@ -1,0 +1,56 @@
+name: 🐛 Bug 反馈 / Bug report
+description: 反馈一个 Bug（请尽量填全信息）· Report a problem
+title: "[Bug] "
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        感谢反馈！请尽量填写以下信息，能大大加快问题定位。
+        Thanks for reporting! Filling this out helps us fix it faster.
+  - type: input
+    id: version
+    attributes:
+      label: 模块版本 / Module version
+      description: WebUI「设置 → 关于」里的版本号
+      placeholder: e.g. 1.0.0
+    validations:
+      required: true
+  - type: input
+    id: device
+    attributes:
+      label: 设备与系统 / Device & system
+      description: 机型、安卓版本、Root 方案（Magisk / KernelSU / APatch）及版本
+      placeholder: e.g. Pixel 8 · Android 15 · KernelSU 1.0.0
+    validations:
+      required: true
+  - type: input
+    id: arch
+    attributes:
+      label: CPU 架构 / CPU architecture
+      description: 终端执行 `uname -m` 的结果
+      placeholder: e.g. aarch64
+  - type: textarea
+    id: steps
+    attributes:
+      label: 复现步骤 / Steps to reproduce
+      description: 你做了什么、期望结果、实际结果
+      placeholder: |
+        1. 打开 WebUI → 扩展库
+        2. 搜索并下载 xx
+        3. 实际：下载失败 / 挂载后命令找不到 …
+      render: markdown
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: 日志 / Logs
+      description: WebUI 控制台日志、`libman` 输出、或 /data/adb/modules/libpool 下的日志（如有）
+      placeholder: 粘贴日志…
+      render: shell
+  - type: textarea
+    id: notes
+    attributes:
+      label: 其它说明 / Additional context
+      description: 截图、录屏链接等

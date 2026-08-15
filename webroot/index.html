@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<!--
+  LibPool · 库池 — KsuWebUI
+  Copyright (C) 2026 MINO · Himer (MineACE)
+  SPDX-License-Identifier: Apache-2.0
+-->
+<html lang="zh-CN" data-theme="auto">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="color-scheme" content="light dark" />
+  <title>LibPool · 库池</title>
+  <link rel="icon" href="icons/icon.png" />
+  <!-- 主题防闪白（FOUC）：在 CSS 前同步应用已保存主题，避免首屏闪白 -->
+  <script>document.documentElement.dataset.theme = localStorage.getItem("libpool-theme") || "auto";</script>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <!-- 主题切换丝滑遮罩 + 上下边框模糊过渡条 + 自定义背景层 -->
+  <div class="theme-scrim" id="themeScrim" aria-hidden="true"></div>
+  <div class="top-blur" aria-hidden="true"></div>
+  <div class="bottom-blur" aria-hidden="true"></div>
+  <div class="custom-bg" id="customBg" aria-hidden="true"></div>
+  <div class="custom-bg-scrim" aria-hidden="true"></div>
+  <!-- 模糊预热层：预编译毛玻璃 GPU 着色器，切换页面/面板时模糊秒加载。
+       每个 <i> 携带一种常用模糊半径，一次性把所有着色器提前编译好，
+       低配设备切换面板时不再现场编译（即"晚 0.x 秒才糊出来"的根因）。 -->
+  <div class="blur-warmup" id="blurWarmup" aria-hidden="true">
+    <i></i><i class="b38"></i><i class="b36"></i><i class="b30"></i>
+    <i class="b22"></i><i class="b20"></i><i class="b18"></i><i class="b8"></i>
+  </div>
+
+  <div class="app" id="app">
+
+    <!-- 顶部标题区 -->
+    <header class="hero">
+      <div class="orb orb-a"></div>
+      <div class="orb orb-b"></div>
+      <div class="hero-inner">
+        <div class="brand-row">
+          <div class="brand-icon" aria-hidden="true">
+            <img src="icons/icon.png" alt="" />
+          </div>
+          <div class="brand-text">
+            <h1>LibPool</h1>
+            <p class="tagline">补齐安卓缺失的常用库 · by MINO</p>
+          </div>
+        </div>
+        <div class="status-chip" id="statusChip">
+          <span class="dot"></span><span id="statusText">正在检测…</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- 标签栏 -->
+    <nav class="tabs" role="tablist" aria-label="主导航">
+      <button class="tab active" data-tab="mounted" role="tab" aria-selected="true">已挂载</button>
+      <button class="tab" data-tab="store" role="tab" aria-selected="false">扩展库</button>
+      <button class="tab" data-tab="settings" role="tab" aria-selected="false">设置</button>
+      <span class="tab-indicator" id="tabIndicator"></span>
+    </nav>
+
+    <main class="content">
+
+      <!-- ============ 已挂载 ============ -->
+      <section class="panel active" id="panel-mounted" role="tabpanel">
+        <div class="stat-grid">
+          <div class="stat-card">
+            <div class="stat-num" id="statMounted">0</div>
+            <div class="stat-label">已挂载</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-num" id="statInstalled">0</div>
+            <div class="stat-label">已下载</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-num" id="statTotal">0</div>
+            <div class="stat-label">可选总数</div>
+          </div>
+        </div>
+
+        <div class="section-title">
+          <h2>已挂载的库</h2>
+          <button class="link-btn" id="btnRefresh">刷新</button>
+        </div>
+        <div class="lib-list" id="mountedList"></div>
+
+        <div class="hint-card" id="mountedHint" hidden>
+          <div class="hint-title">还没有挂载任何库</div>
+          <div class="hint-body">到「扩展库」页挑几个常用的下载，开关一打开就能用。模块自带的常用库已为你准备好。</div>
+        </div>
+      </section>
+
+      <!-- ============ 扩展库 ============ -->
+      <section class="panel" id="panel-store" role="tabpanel" hidden>
+        <div class="search-box">
+          <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.2-3.2"/></svg>
+          <input type="search" id="searchInput" placeholder="搜索库，例如 curl、python…" autocomplete="off" />
+        </div>
+        <div class="chips" id="catChips"></div>
+        <div class="store-grid" id="storeGrid"></div>
+        <div class="hint-card" id="storeEmpty" hidden>
+          <div class="hint-title">没找到相关库</div>
+          <div class="hint-body">换个关键词试试，或者看看其他分类。</div>
+        </div>
+      </section>
+
+      <!-- ============ 设置 ============ -->
+      <section class="panel" id="panel-settings" role="tabpanel" hidden>
+        <div class="section-title"><h2>外观</h2></div>
+        <div class="glass-card setting-row">
+          <div class="setting-text">
+            <div class="setting-name">外观模式</div>
+            <div class="setting-desc">跟随系统 / 亮色 / 暗色</div>
+          </div>
+          <div class="seg" id="themeSeg" role="radiogroup">
+            <button data-theme="auto" class="seg-btn active">跟随</button>
+            <button data-theme="light" class="seg-btn">亮色</button>
+            <button data-theme="dark" class="seg-btn">暗色</button>
+          </div>
+        </div>
+        <div class="glass-card">
+          <div class="setting-row">
+            <div class="setting-text">
+              <div class="setting-name">背景图片</div>
+              <div class="setting-desc">粘贴图片网址，或从手机相册选择本地图片（壁纸模糊度可在下方调整）</div>
+            </div>
+          </div>
+          <div class="mirror-custom">
+            <input type="text" id="bgInput" class="mirror-input" placeholder="https://…（留空点应用则清除）" autocomplete="off" spellcheck="false" />
+          </div>
+          <div class="bg-actions">
+            <button class="btn-primary ripple-host" id="btnApplyBg">应用背景</button>
+            <button class="btn-ghost ripple-host" id="btnPickBg">从相册选择</button>
+            <button class="btn-remove ripple-host" id="btnClearBg">清除</button>
+          </div>
+          <input type="file" id="bgFile" accept="image/*" hidden />
+        </div>
+
+        <div class="glass-card">
+          <div class="setting-row">
+            <div class="setting-text">
+              <div class="setting-name">壁纸模糊度</div>
+              <div class="setting-desc">模糊越大背景越柔和，0 就是完全清晰的原图（默认不再叠加白色遮罩）</div>
+            </div>
+            <span class="setting-val" id="wallBlurVal">16</span>
+          </div>
+          <input type="range" class="slider" id="wallBlurSlider" min="0" max="40" value="16" aria-label="壁纸模糊度" />
+        </div>
+
+        <div class="glass-card">
+          <div class="setting-row">
+            <div class="setting-text">
+              <div class="setting-name">卡片透明度</div>
+              <div class="setting-desc">调暗一点更通透，调亮一点更清楚</div>
+            </div>
+            <span class="setting-val" id="alphaVal">55%</span>
+          </div>
+          <input type="range" class="slider" id="alphaSlider" min="20" max="100" value="55" aria-label="卡片透明度" />
+        </div>
+
+        <div class="glass-card">
+          <div class="setting-row">
+            <div class="setting-text">
+              <div class="setting-name">卡片模糊度</div>
+              <div class="setting-desc">模糊越大背景越柔和，0 就是全透明无模糊</div>
+            </div>
+            <span class="setting-val" id="blurVal">24</span>
+          </div>
+          <input type="range" class="slider" id="blurSlider" min="0" max="40" value="24" aria-label="卡片模糊度" />
+        </div>
+
+        <div class="glass-card setting-row">
+          <div class="setting-text">
+            <div class="setting-name">圆角类型</div>
+            <div class="setting-desc">G2 连续圆角更柔和；经典圆角更抗锯齿，适合老设备</div>
+          </div>
+          <div class="seg" id="radiusSeg" role="radiogroup" aria-label="圆角类型">
+            <button data-radius-type="squircle" class="seg-btn active">G2 连续</button>
+            <button data-radius-type="round" class="seg-btn">经典</button>
+          </div>
+        </div>
+
+        <div class="glass-card">
+          <div class="setting-row">
+            <div class="setting-text">
+              <div class="setting-name">圆角大小</div>
+              <div class="setting-desc">G2 和经典圆角下都可自由调整</div>
+            </div>
+            <span class="setting-val" id="radiusSizeVal">32px</span>
+          </div>
+          <input type="range" class="slider" id="radiusSizeSlider" min="16" max="48" value="32" aria-label="圆角大小" />
+        </div>
+
+        <div class="glass-card">
+          <div class="setting-row">
+            <div class="setting-text">
+              <div class="setting-name">按钮透明度</div>
+              <div class="setting-desc">调暗一点更通透，调亮一点更清楚（按钮底色）</div>
+            </div>
+            <span class="setting-val" id="btnAlphaVal">92%</span>
+          </div>
+          <input type="range" class="slider" id="btnAlphaSlider" min="30" max="100" value="92" aria-label="按钮透明度" />
+        </div>
+
+        <div class="glass-card">
+          <div class="setting-row">
+            <div class="setting-text">
+              <div class="setting-name">按钮模糊度</div>
+              <div class="setting-desc">按钮背景的毛玻璃模糊强度</div>
+            </div>
+            <span class="setting-val" id="btnBlurVal">18</span>
+          </div>
+          <input type="range" class="slider" id="btnBlurSlider" min="0" max="40" value="18" aria-label="按钮模糊度" />
+        </div>
+
+        <div class="section-title"><h2>下载</h2></div>
+        <div class="glass-card setting-row">
+          <div class="setting-text">
+            <div class="setting-name">下载镜像</div>
+            <div class="setting-desc">中国大陆用户可选清华或北外镜像，速度更稳</div>
+          </div>
+        </div>
+        <div class="glass-card">
+          <div class="mirror-list" id="mirrorList" role="radiogroup" aria-label="下载镜像">
+            <button type="button" class="mirror-card ripple-host" data-url="https://packages.termux.dev/apt/termux-main" data-name="官方源" data-host="packages.termux.dev" role="radio" aria-checked="true">
+              <span class="mirror-radio"></span>
+              <span class="mirror-text">
+                <span class="mirror-name">官方源</span>
+                <span class="mirror-host">packages.termux.dev</span>
+              </span>
+            </button>
+            <button type="button" class="mirror-card ripple-host" data-url="https://mirrors.tuna.tsinghua.edu.cn/termux/apt/termux-main" data-name="清华镜像" data-host="mirrors.tuna.tsinghua.edu.cn" role="radio" aria-checked="false">
+              <span class="mirror-radio"></span>
+              <span class="mirror-text">
+                <span class="mirror-name">清华镜像</span>
+                <span class="mirror-host">mirrors.tuna.tsinghua.edu.cn</span>
+              </span>
+            </button>
+            <button type="button" class="mirror-card ripple-host" data-url="https://mirrors.bfsu.edu.cn/termux/apt/termux-main" data-name="北外镜像" data-host="mirrors.bfsu.edu.cn" role="radio" aria-checked="false">
+              <span class="mirror-radio"></span>
+              <span class="mirror-text">
+                <span class="mirror-name">北外镜像</span>
+                <span class="mirror-host">mirrors.bfsu.edu.cn</span>
+              </span>
+            </button>
+            <button type="button" class="mirror-card ripple-host" data-url="custom" data-name="自定义地址" data-host="手动填写镜像 URL" role="radio" aria-checked="false">
+              <span class="mirror-radio"></span>
+              <span class="mirror-text">
+                <span class="mirror-name">自定义地址</span>
+                <span class="mirror-host">手动填写镜像 URL</span>
+              </span>
+            </button>
+          </div>
+          <div class="mirror-custom" id="mirrorCustomWrap" hidden>
+            <input type="text" id="mirrorCustom" class="mirror-input" placeholder="https://…" autocomplete="off" spellcheck="false" />
+          </div>
+          <button class="btn-primary ripple-host" id="btnSaveMirror">保存镜像</button>
+        </div>
+
+        <div class="section-title"><h2>关于</h2></div>
+        <div class="glass-card about-card">
+          <div class="about-row"><span>模块版本</span><span class="mono" id="aboutVer">1.0.0</span></div>
+          <div class="about-row"><span>架构</span><span class="mono" id="aboutArch">—</span></div>
+          <div class="about-row"><span>库来源</span><span>322 个库 · Termux 仓库自动跟随最新版</span></div>
+          <div class="about-row"><span>支持系统</span><span>Magisk / KernelSU / APatch</span></div>
+          <div class="about-row"><span>出品</span><span>MINO · Himer (MineACE)</span></div>
+          <div class="about-row"><span>开源许可</span><span>Apache-2.0</span></div>
+          <p class="about-note">LibPool 用轻量原生工具（Rust 编译）管理库，挂载后无需常驻进程，几乎不耗电。32 位设备自动使用兼容二进制或脚本兜底。</p>
+        </div>
+
+        <div class="danger-zone">
+          <button class="btn-danger" id="btnReset">全部卸载并重置</button>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- 公告弹窗（内容拉取自纯文本站点，毛玻璃 + 背景丝滑渐变模糊） -->
+  <div class="announcement" id="announcement" hidden role="dialog" aria-modal="true" aria-labelledby="announcementTitle">
+    <div class="announcement-backdrop"></div>
+    <div class="glass-card announcement-card">
+      <div class="announcement-head">
+        <div class="announcement-title" id="announcementTitle">
+          <span id="announcementTitleText">公告</span>
+          <span class="announcement-badge" id="announcementBadge">最新</span>
+        </div>
+        <button class="announcement-close" id="closeAnnouncement" aria-label="关闭公告">×</button>
+      </div>
+      <div class="announcement-content" id="announcementContent"></div>
+      <button class="btn-primary announcement-ok ripple-host" id="okAnnouncement">我知道了</button>
+    </div>
+  </div>
+
+  <!-- 下载进度遮罩 -->
+  <div class="overlay" id="overlay" hidden>
+    <div class="glass-card overlay-card">
+      <div class="overlay-title" id="overlayTitle">下载中…</div>
+      <div class="progress-track"><div class="progress-fill indeterminate" id="progressFill"></div></div>
+      <div class="overlay-sub" id="overlaySub">请保持页面打开</div>
+      <button class="overlay-cancel" id="btnCancelDownload">取消下载</button>
+    </div>
+  </div>
+
+  <!-- toast -->
+  <div class="toast" id="toast" hidden></div>
+
+  <!-- 返回顶部按钮（毛玻璃悬浮键，滚动超 15% 显示） -->
+  <button class="back-top" id="backTop" aria-label="返回顶部">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 19V5"/><path d="m5 12 7-7 7 7"/></svg>
+  </button>
+
+  <script type="module" src="app.js"></script>
+</body>
+</html>
