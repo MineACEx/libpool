@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="https://cdn.jsdelivr.net/gh/MineACEx/libpool@master/webroot/icons/icon.png" width="112" height="112" alt="LibPool" />
+  <img src="https://raw.githubusercontent.com/MineACEx/libpool/master/webroot/icons/icon.png" width="112" height="112" alt="LibPool" />
 </p>
 
 <h1 align="center">LibPool</h1>
@@ -12,17 +12,17 @@
 <p align="center">English · [简体中文](README.md)</p>
 
 <p align="center">
-  <a href="./LICENSE"><img src="https://img.shields.io/badge/License-Apache--2.0-blue.svg" alt="License" /></a>
-  <a href="#installation"><img src="https://img.shields.io/badge/Platform-Magisk%20%7C%20KernelSU%20%7C%20APatch-orange.svg" alt="Platform" /></a>
-  <a href="#usage"><img src="https://img.shields.io/badge/UI-KsuWebUI-0099ff.svg" alt="KsuWebUI" /></a>
-  <a href="./releases"><img src="https://img.shields.io/github/v/release/MineACEx/libpool?color=0071e3&amp;label=Release" alt="Release" /></a>
-  <a href="./releases"><img src="https://img.shields.io/github/downloads/MineACEx/libpool/total?color=34c759&amp;label=Downloads" alt="Downloads" /></a>
-  <a href="."><img src="https://img.shields.io/github/stars/MineACEx/libpool?color=e5a00d&amp;label=Stars" alt="Stars" /></a>
-  <a href="."><img src="https://img.shields.io/github/forks/MineACEx/libpool?color=5856d6&amp;label=Forks" alt="Forks" /></a>
-  <a href="."><img src="https://img.shields.io/github/last-commit/MineACEx/libpool?label=Last%20commit" alt="Last commit" /></a>
-  <a href="./issues"><img src="https://img.shields.io/github/issues/MineACEx/libpool?color=ff453a&amp;label=Issues" alt="Issues" /></a>
-  <a href="."><img src="https://img.shields.io/github/languages/top/MineACEx/libpool?label=Language" alt="Language" /></a>
-  <a href="."><img src="https://img.shields.io/github/languages/code-size/MineACEx/libpool?label=Code%20size" alt="Code size" /></a>
+  <a href="https://github.com/MineACEx/libpool/blob/master/LICENSE"><img src="https://img.shields.io/badge/License-Apache--2.0-blue.svg" alt="License" /></a>
+  <a href="https://github.com/MineACEx/libpool#installation"><img src="https://img.shields.io/badge/Platform-Magisk%20%7C%20KernelSU%20%7C%20APatch-orange.svg" alt="Platform" /></a>
+  <a href="https://github.com/MineACEx/libpool#usage"><img src="https://img.shields.io/badge/UI-KsuWebUI-0099ff.svg" alt="KsuWebUI" /></a>
+  <a href="https://github.com/MineACEx/libpool/releases"><img src="https://img.shields.io/github/v/release/MineACEx/libpool?color=0071e3&amp;label=Release" alt="Release" /></a>
+  <a href="https://github.com/MineACEx/libpool/releases"><img src="https://img.shields.io/github/downloads/MineACEx/libpool/total?color=34c759&amp;label=Downloads" alt="Downloads" /></a>
+  <a href="https://github.com/MineACEx/libpool"><img src="https://img.shields.io/github/stars/MineACEx/libpool?color=e5a00d&amp;label=Stars" alt="Stars" /></a>
+  <a href="https://github.com/MineACEx/libpool"><img src="https://img.shields.io/github/forks/MineACEx/libpool?color=5856d6&amp;label=Forks" alt="Forks" /></a>
+  <a href="https://github.com/MineACEx/libpool"><img src="https://img.shields.io/github/last-commit/MineACEx/libpool?label=Last%20commit" alt="Last commit" /></a>
+  <a href="https://github.com/MineACEx/libpool/issues"><img src="https://img.shields.io/github/issues/MineACEx/libpool?color=ff453a&amp;label=Issues" alt="Issues" /></a>
+  <a href="https://github.com/MineACEx/libpool"><img src="https://img.shields.io/github/languages/top/MineACEx/libpool?label=Language" alt="Language" /></a>
+  <a href="https://github.com/MineACEx/libpool"><img src="https://img.shields.io/github/languages/code-size/MineACEx/libpool?label=Code%20size" alt="Code size" /></a>
 </p>
 
 Supports: **Magisk** / **KernelSU** / **APatch**, including **32-bit (armv7)** devices.
