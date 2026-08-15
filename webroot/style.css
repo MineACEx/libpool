@@ -1131,6 +1131,16 @@ body {
 .announcement-content hr { border: none; border-top: 1px solid var(--hairline); margin: 10px 0; }
 .announcement-content em { font-style: italic; }
 .announcement-ok { margin-top: 16px; }
+/* 「我知道了」按钮：显式 flex 水平+垂直居中，避免不同 WebView 里按钮文字偏下 */
+#okAnnouncement {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  min-height: 48px;
+  padding-top: 8px;
+  padding-bottom: 8px;
+}
 
 /* ---------- 日志查看器（关于 → 查看日志） ---------- */
 .log-card { max-height: 82vh; }

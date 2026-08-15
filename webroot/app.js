@@ -310,6 +310,8 @@ async function toggleLib(id) {
   }
 }
 
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
 async function installLib(id) {
   if (state.inPreview) { showToast("预览模式下不执行操作"); return; }
   const lib = state.repos.find((r) => r.id === id);
@@ -339,12 +341,44 @@ async function installLib(id) {
   } catch (e) { /* 预检失败不阻断，由下方正式执行兜底 */ }
   logWebui(`开始下载: ${id}`);
   state.cancelRequested = false;
-  showOverlay(`正在下载 ${lib ? lib.name : id}`, "请保持页面打开…");
+  showOverlay(`正在安装 ${lib ? lib.name : id}`, "后台安装中，可稍等或取消…");
   try {
-    // 用 exec 执行安装（KsuWebUI 本版本的 spawn 桥接不可靠，install 从未真正跑起来；
-    // exec 会等命令跑完，下载/解压/镜像回退全程日志写入 logs/libman.log，便于排查）
-    await libmanExec(`install ${id}`);
-    if (state.cancelRequested) return; // 用户已取消
+    // 后台启动安装：exec 只负责拉起 nohup 进程、立即返回，然后 WebUI 轮询判断完成。
+    // 不能直接 exec 等长命令——KsuWebUI 的 exec 会同步等待命令结束，16 秒+的下载
+    // 会把 WebUI 主线程卡死（曾出现点下载后整页卡死）。轮询用 kill -0 / cat 等毫秒级命令，无感。
+    const tool = useNative ? `${MOD}/tools/libman` : `sh ${MOD}/tools/libman.sh`;
+    const cmd = `LIBPOOL_DIR=${MOD} ${tool} install ${id}`;
+    const pidPath = `${MOD}/logs/.install-${id}.pid`;
+    const logPath = `${MOD}/logs/install-${id}.log`;
+    await exec(`mkdir -p ${MOD}/logs; rm -f ${pidPath} ${logPath}; nohup sh -c '${cmd}' > ${logPath} 2>&1 & echo $! > ${pidPath}`);
+
+    // 轮询后台进程是否结束（每 1.5s 一次，超时 240 秒）
+    let pid = ((await exec(`cat ${pidPath} 2>/dev/null`)).stdout || "").trim();
+    const t0 = Date.now();
+    while (true) {
+      if (state.cancelRequested) {
+        await exec(`kill ${pid} 2>/dev/null; pkill -f "libman install ${id}" 2>/dev/null; true`);
+        throw new Error("已取消");
+      }
+      if (Date.now() - t0 > 240000) {
+        await exec(`kill ${pid} 2>/dev/null; pkill -f "libman install ${id}" 2>/dev/null; true`);
+        throw new Error("安装超时（240 秒），请查看日志");
+      }
+      await sleep(1500);
+      const alive = pid
+        ? await exec(`kill -0 ${pid} 2>/dev/null && echo YES || echo NO`)
+        : await exec(`pgrep -f "libman install ${id}" >/dev/null 2>&1 && echo YES || echo NO`);
+      if ((alive.stdout || "").trim() !== "YES") break;
+    }
+
+    // 读取本次安装日志判断结果
+    const r = await exec(`cat ${logPath} 2>/dev/null`);
+    const out = r.stdout || "";
+    logWebui(`安装日志(${id}):\n${out.slice(0, 900)}`);
+    if (/libman 错误|命令失败|索引中找不到|所有镜像均无法|下载失败/.test(out)) {
+      const m = out.match(/libman 错误:([^\n]*)/);
+      throw new Error((m ? m[1].trim() : "安装失败，请查看日志").slice(0, 120));
+    }
     hideOverlay();
     logWebui(`下载完成: ${id}`);
     await verifyInstall(id); // 校验安装产物（bin/lib 是否真的装出了文件）
