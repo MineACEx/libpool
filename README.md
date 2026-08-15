@@ -9,6 +9,14 @@
 [![License](https://img.shields.io/badge/License-Apache--2.0-blue.svg)](./LICENSE)
 [![Platform](https://img.shields.io/badge/Platform-Magisk%20%7C%20KernelSU%20%7C%20APatch-orange.svg)](#安装)
 [![KsuWebUI](https://img.shields.io/badge/UI-KsuWebUI-0099ff.svg)](#使用)
+[![Release](https://img.shields.io/github/v/release/MineACEx/libpool?color=0071e3&label=Release)](./releases)
+[![Downloads](https://img.shields.io/github/downloads/MineACEx/libpool/total?color=34c759&label=Downloads)](./releases)
+[![Stars](https://img.shields.io/github/stars/MineACEx/libpool?color=e5a00d&label=Stars)](.)
+[![Forks](https://img.shields.io/github/forks/MineACEx/libpool?color=5856d6&label=Forks)](.)
+[![Last commit](https://img.shields.io/github/last-commit/MineACEx/libpool?label=Last%20commit)](.)
+[![Issues](https://img.shields.io/github/issues/MineACEx/libpool?color=ff453a&label=Issues)](./issues)
+[![Language](https://img.shields.io/github/languages/top/MineACEx/libpool?label=Language)](.)
+[![Code size](https://img.shields.io/github/languages/code-size/MineACEx/libpool?label=Code%20size)](.)
 
 支持：**Magisk** / **KernelSU** / **APatch**，兼容 **32 位（armv7）** 设备。
 

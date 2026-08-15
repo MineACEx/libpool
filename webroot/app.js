@@ -309,6 +309,15 @@ async function toggleLib(id) {
 async function installLib(id) {
   if (state.inPreview) { showToast("预览模式下不执行操作"); return; }
   const lib = state.repos.find((r) => r.id === id);
+  // 预检：确认管理工具就绪，避免"点下载秒弹又秒关"的困惑。
+  // 模块刚安装未重启 / 二进制缺失时，直接给出明确提示而不是闪一下失败弹窗。
+  try {
+    const probe = await exec(`test -x ${MOD}/tools/libman && echo native || test -x ${MOD}/tools/libman.sh && echo shell`);
+    if (!/(native|shell)/.test(probe.stdout || "")) {
+      showToast("管理工具未就绪，请重启一次手机或重装模块", true);
+      return;
+    }
+  } catch (e) { /* 预检失败不阻断，由下方正式执行兜底 */ }
   state.cancelRequested = false;
   showOverlay(`正在下载 ${lib ? lib.name : id}`, "请保持页面打开…");
   try {

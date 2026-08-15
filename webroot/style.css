@@ -370,31 +370,31 @@ body {
 }
 
 /* ---------- 顶部 ---------- */
-.hero { padding: 52px 10px 26px; animation: fadeUp 0.5s cubic-bezier(0.25, 0.1, 0.25, 1) backwards; }
-.hero-inner { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
-.brand-row { display: flex; align-items: center; gap: 14px; }
+.hero { padding: 44px 10px 26px; animation: fadeUp 0.5s cubic-bezier(0.25, 0.1, 0.25, 1) backwards; }
+/* 垂直居中排版：图标在最上、模块名、作者标签紧随其后 */
+.hero-inner {
+  display: flex; flex-direction: column;
+  align-items: center; gap: 10px;
+  text-align: center;
+}
 
 /* 品牌图标：仅圆角遮罩（不加描边/阴影/底图），图标完整显示于圆角内 */
 .brand-icon {
   position: relative;
-  width: 56px; height: 56px;
+  width: 88px; height: 88px;
   display: block;
   overflow: hidden;
   border-radius: var(--r-card);
   corner-shape: var(--radius-shape, squircle);
 }
-.brand-icon .bi { display: block; width: 20px; height: 4px; border-radius: 999px; }
-.bi1 { width: 14px; background: var(--accent); }
-.bi2 { width: 20px; background: var(--accent); opacity: 0.85; }
-.bi3 { width: 16px; background: var(--accent); opacity: 0.7; }
 
-.brand-text h1 {
-  font-size: 34px;
+.brand-name {
+  font-size: 30px;
   font-weight: 700;
   letter-spacing: -0.02em;
-  line-height: 1.1;
+  line-height: 1.15;
 }
-.tagline { font-size: 14px; color: var(--text-secondary); margin-top: 2px; }
+.tagline { font-size: 14px; color: var(--text-secondary); }
 
 .status-chip {
   display: inline-flex; align-items: center; gap: 7px;
@@ -532,6 +532,9 @@ body {
   border: 1px solid var(--card-border);
   box-shadow: var(--card-shadow);
   animation: fadeUp 0.4s cubic-bezier(0.25, 0.1, 0.25, 1) both;
+  /* 滚动性能：屏幕外的卡片跳过渲染（含毛玻璃），进入视口才绘制，视觉零变化 */
+  content-visibility: auto;
+  contain-intrinsic-size: auto 72px;
 }
 .lib-icon {
   flex: none; width: 42px; height: 42px;
@@ -679,6 +682,9 @@ body {
     opacity 0.4s var(--ease-out),
     transform 0.2s var(--ease-out),
     box-shadow 0.3s var(--ease-ios);
+  /* 滚动性能：322 张卡屏幕外的跳过渲染（含毛玻璃），进入视口才绘制，视觉零变化 */
+  content-visibility: auto;
+  contain-intrinsic-size: auto 180px;
 }
 .store-card:active { transform: scale(0.975); }
 .store-head { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
@@ -1028,9 +1034,14 @@ body {
    backdrop-filter 从 0 → blur(20px) 渐变，同时卡片上浮展开。 */
 .announcement {
   position: fixed; inset: 0;
+  height: 100%;
+  height: 100dvh;          /* 移动端跟随动态视口（地址栏收放时仍居中） */
   z-index: 80;
-  display: grid; place-items: center;
-  padding: 24px;
+  display: flex;           /* flex 居中比 grid 在旧 WebView 更稳 */
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  box-sizing: border-box;
 }
 .announcement[hidden] { display: none; }
 .announcement-backdrop {
@@ -1047,8 +1058,8 @@ body {
 .announcement.open .announcement-backdrop { opacity: 1; backdrop-filter: blur(22px) saturate(170%); -webkit-backdrop-filter: blur(22px) saturate(170%); }
 .announcement-card {
   position: relative;
-  width: min(480px, 92vw);
-  max-height: 72vh;
+  width: min(480px, calc(100vw - 40px));
+  max-height: 76vh;
   display: flex; flex-direction: column;
   padding: 22px;
   background: var(--card-bg-strong);
@@ -1251,7 +1262,7 @@ body {
   .stat-grid { gap: 16px; }
   .app { padding: 0 32px 60px; }
   .hero { padding: 64px 12px 28px; }
-  .brand-text h1 { font-size: 40px; }
+  .brand-name { font-size: 38px; }
 }
 
 /* ---------- 响应式：小屏手机 ---------- */
