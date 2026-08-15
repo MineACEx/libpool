@@ -166,6 +166,32 @@ pub fn get_meta(dir: &str, id: &str) -> Result<InstalledMeta, String> {
     })
 }
 
+/// 备用镜像列表（明文 HTTP 优先）。
+/// 设备若缺少 curl/wget 的 TLS 支持，https 主镜像会失败；这些国内镜像支持 http://，
+/// 纯 Rust 的 http_get 无需 TLS 工具即可直连。
+const FALLBACK_MIRRORS: &[&str] = &[
+    "http://mirrors.bfsu.edu.cn/termux/apt/termux-main",
+    "http://mirrors.tuna.tsinghua.edu.cn/termux/apt/termux-main",
+    "https://mirrors.bfsu.edu.cn/termux/apt/termux-main",
+    "https://mirrors.tuna.tsinghua.edu.cn/termux/apt/termux-main",
+];
+
+/// 生成候选镜像列表：配置的镜像 → 同主机 http 版（若为 https）→ 备用镜像。
+fn candidate_mirrors(cfg_mirror: &str) -> Vec<String> {
+    let primary = cfg_mirror.trim_end_matches('/').to_string();
+    let mut out = vec![primary.clone()];
+    if let Some(rest) = primary.strip_prefix("https://") {
+        out.push(format!("http://{rest}"));
+    }
+    for m in FALLBACK_MIRRORS {
+        let m = m.to_string();
+        if !out.contains(&m) {
+            out.push(m);
+        }
+    }
+    out
+}
+
 /// 安装库
 pub fn install_lib(dir: &str, entry: &RepoEntry, verbose: bool) -> Result<(), String> {
     let lib_root = format!("{dir}/libs/{}", entry.id);
@@ -199,8 +225,57 @@ pub fn install_lib(dir: &str, entry: &RepoEntry, verbose: bool) -> Result<(), St
         other => return Err(format!("未知安装类型: {other}")),
     };
 
+    finalize_install(dir, entry, &meta, &tmp, &lib_root, verbose)?;
+    Ok(())
+}
+
+/// 从本地 .deb 安装（WebUI/脚本已把 .deb 下载到本地，免 shell 网络依赖）。
+pub fn install_local_lib(dir: &str, id: &str, deb_path: &str, verbose: bool) -> Result<(), String> {
+    let repos = load_repos(dir)?;
+    let entry = repos
+        .iter()
+        .find(|r| r.id == id)
+        .ok_or_else(|| format!("仓库中不存在库: {id}"))?;
+    let lib_root = format!("{dir}/libs/{}", entry.id);
+    if is_installed(dir, &entry.id) {
+        match get_meta(dir, &entry.id) {
+            Ok(m) if m.bins.is_empty() && m.libs.is_empty() => {
+                util::log_file(
+                    dir,
+                    &format!("检测到 {} 安装为空壳（无 bin/lib），删除并重装", entry.id),
+                );
+                let _ = std::fs::remove_dir_all(&lib_root);
+            }
+            _ => {
+                if verbose {
+                    println!("已安装过: {}，可先 remove 再重装", entry.id);
+                }
+                return Ok(());
+            }
+        }
+    }
+
+    let _ = fs::create_dir_all(&lib_root);
+    let tmp = format!("{dir}/libs/.tmp/{}", entry.id);
+    let _ = fs::remove_dir_all(&tmp);
+    fs::create_dir_all(&tmp).map_err(|e| e.to_string())?;
+
+    let meta = install_from_local_deb(dir, entry, deb_path, &tmp, verbose)?;
+    finalize_install(dir, entry, &meta, &tmp, &lib_root, verbose)?;
+    Ok(())
+}
+
+/// 把已解包到 tmp 的产物搬运到 libs/<id> 并写 meta.json（install 与 install-local 共用）。
+fn finalize_install(
+    dir: &str,
+    entry: &RepoEntry,
+    meta: &InstalledMeta,
+    tmp: &str,
+    lib_root: &str,
+    verbose: bool,
+) -> Result<(), String> {
     // 定位 usr 根目录
-    let usr = find_usr_root(&tmp);
+    let usr = find_usr_root(tmp);
     let bin_src = format!("{usr}/bin");
     let lib_src = format!("{usr}/lib");
     let bin_dst = format!("{lib_root}/bin");
@@ -260,7 +335,7 @@ pub fn install_lib(dir: &str, entry: &RepoEntry, verbose: bool) -> Result<(), St
         }
     }
 
-    let _ = fs::remove_dir_all(&tmp);
+    let _ = fs::remove_dir_all(tmp);
 
     if verbose {
         println!(
@@ -307,7 +382,7 @@ fn find_usr_root(tmp: &str) -> String {
     candidates[0].clone()
 }
 
-/// 从 Termux 仓库安装
+/// 从 Termux 仓库安装（自动镜像回退：主镜像 https 失败时，依次尝试明文 HTTP 备用镜像）。
 fn install_from_termux(
     dir: &str,
     entry: &RepoEntry,
@@ -320,7 +395,6 @@ fn install_from_termux(
         entry.pkg.clone()
     };
     let cfg = util::load_config(dir)?;
-    let mirror = cfg.mirror.trim_end_matches('/').to_string();
     let arch = cfg.arch.clone();
 
     let cache = format!("{dir}/libs/.cache");
@@ -328,26 +402,68 @@ fn install_from_termux(
 
     let idx_xz = format!("{cache}/Packages.{arch}.xz");
     let idx_txt = format!("{cache}/Packages.{arch}");
-    let idx_url = format!("{mirror}/dists/stable/main/binary-{arch}/Packages.xz");
-    if verbose {
-        eprintln!("下载仓库索引…");
-    }
-    util::download(&idx_url, &idx_xz).or_else(|_| {
-        let alt = format!("{mirror}/dists/stable/main/binary-{arch}/Packages");
-        util::download(&alt, &idx_txt)
-    })?;
 
-    if Path::new(&idx_xz).exists() {
-        util::xz_decompress(&idx_xz, &idx_txt)?;
+    // 依次尝试每个候选镜像，直到成功拿到索引并解析出该包的 .deb 文件名。
+    let mirrors = candidate_mirrors(&cfg.mirror);
+    let mut version = String::new();
+    let mut filename = String::new();
+    let mut chosen_mirror = String::new();
+    let mut last_err = String::new();
+
+    for m in &mirrors {
+        if verbose {
+            eprintln!("尝试镜像: {m}");
+        }
+        // 先清掉上次可能残留的索引，避免误读
+        let _ = fs::remove_file(&idx_txt);
+
+        // 优先 Packages.xz，失败再试纯文本 Packages
+        let mut index_ok = false;
+        let idx_xz_url = format!("{m}/dists/stable/main/binary-{arch}/Packages.xz");
+        if util::download(&idx_xz_url, &idx_xz).is_ok() && Path::new(&idx_xz).exists() {
+            if util::xz_decompress(&idx_xz, &idx_txt).is_ok() {
+                index_ok = true;
+            }
+        }
+        if !index_ok {
+            let idx_txt_url = format!("{m}/dists/stable/main/binary-{arch}/Packages");
+            if util::download(&idx_txt_url, &idx_txt).is_ok() {
+                index_ok = true;
+            }
+        }
+
+        if index_ok {
+            match parse_packages(&idx_txt, &pkg) {
+                Ok((v, f)) => {
+                    version = v;
+                    filename = f;
+                    chosen_mirror = m.clone();
+                    break;
+                }
+                Err(e) => {
+                    // 索引本体能读，但找不到该包 → 换镜像也无济于事，直接报错
+                    return Err(e);
+                }
+            }
+        } else {
+            last_err = format!("镜像 {m} 无法获取索引");
+            if verbose {
+                eprintln!("  {last_err}");
+            }
+        }
     }
 
-    let (version, filename) = parse_packages(&idx_txt, &pkg)?;
+    if chosen_mirror.is_empty() {
+        return Err(format!(
+            "所有镜像均无法下载仓库索引，最后错误：{last_err}（可到设置更换镜像后重试）"
+        ));
+    }
     if verbose {
         eprintln!("{} -> {} ({})", entry.name, version, filename);
     }
 
     let deb_path = format!("{cache}/{}.deb", entry.id);
-    let deb_url = format!("{mirror}/{filename}");
+    let deb_url = format!("{chosen_mirror}/{filename}");
     util::download(&deb_url, &deb_path)?;
     util::log_file(
         dir,
@@ -358,12 +474,50 @@ fn install_from_termux(
         ),
     );
 
-    // 5) 从 .deb 提取 data 归档（支持 xz / gz / zst）
+    extract_data_tar(dir, entry, &deb_path, tmp)?;
+
+    Ok(InstalledMeta {
+        version,
+        bins: Vec::new(),
+        libs: Vec::new(),
+        source_type: "termux".to_string(),
+    })
+}
+
+/// 从本地 .deb 安装（WebUI/脚本已把 .deb 下载到本地，免 shell 网络依赖）。
+fn install_from_local_deb(
+    dir: &str,
+    entry: &RepoEntry,
+    deb_path: &str,
+    tmp: &str,
+    _verbose: bool,
+) -> Result<InstalledMeta, String> {
+    if !Path::new(deb_path).exists() {
+        return Err(format!("本地 .deb 不存在: {deb_path}"));
+    }
+    let version = read_deb_version(deb_path, tmp);
+    extract_data_tar(dir, entry, deb_path, tmp)?;
+    Ok(InstalledMeta {
+        version,
+        bins: Vec::new(),
+        libs: Vec::new(),
+        source_type: "termux".to_string(),
+    })
+}
+
+/// 从 .deb 里取出 data 归档（xz/gz/zst 均可）并解包到 tmp 的 usr 目录。
+fn extract_data_tar(
+    dir: &str,
+    entry: &RepoEntry,
+    deb_path: &str,
+    tmp: &str,
+) -> Result<(), String> {
+    // 从 .deb 提取 data 归档（支持 xz / gz / zst）
     let mut data_file = String::new();
     let mut data_kind = "";
     for ext in ["xz", "gz", "zst"] {
         let m = format!("{tmp}/data.tar.{ext}");
-        if ar::extract_member(&deb_path, &format!("data.tar.{ext}"), &m).is_ok()
+        if ar::extract_member(deb_path, &format!("data.tar.{ext}"), &m).is_ok()
             && std::fs::metadata(&m).map(|x| x.len() > 0).unwrap_or(false)
         {
             data_file = m;
@@ -372,7 +526,7 @@ fn install_from_termux(
         }
     }
     if data_file.is_empty() {
-        return Err("无法从 .deb 提取 data 归档（xz/gz/zst 均未找到）".to_string());
+        return Err(format!("无法从 {} 提取 data 归档（xz/gz/zst 均未找到）", entry.id));
     }
     util::log_file(
         dir,
@@ -394,13 +548,42 @@ fn install_from_termux(
     if !ok {
         return Err(format!("解包 data.tar.{data_kind} 失败: {err}"));
     }
+    Ok(())
+}
 
-    Ok(InstalledMeta {
-        version,
-        bins: Vec::new(),
-        libs: Vec::new(),
-        source_type: "termux".to_string(),
-    })
+/// 从 .deb 的 control 文件里读取 Version 字段（读不到就返回空串，不影响安装）。
+fn read_deb_version(deb_path: &str, tmp: &str) -> String {
+    let mut control_file = String::new();
+    for ext in ["xz", "gz", "zst"] {
+        let out = format!("{tmp}/control.tar.{ext}");
+        if ar::extract_member(deb_path, &format!("control.tar.{ext}"), &out).is_ok() {
+            control_file = out;
+            break;
+        }
+    }
+    if control_file.is_empty() {
+        return String::new();
+    }
+    let out_dir = format!("{tmp}/control_x");
+    let _ = fs::create_dir_all(&out_dir);
+    let Ok((ok, _, _)) = util::run(
+        &format!("cd '{out_dir}' && tar -xf '{control_file}' 2>/dev/null || busybox tar -xf '{control_file}'"),
+        Some(30),
+    ) else {
+        return String::new();
+    };
+    if !ok {
+        return String::new();
+    }
+    let ctrl = format!("{out_dir}/control");
+    if let Ok(text) = fs::read_to_string(&ctrl) {
+        for line in text.lines() {
+            if let Some(v) = line.strip_prefix("Version:") {
+                return v.trim().to_string();
+            }
+        }
+    }
+    String::new()
 }
 
 fn parse_packages(packages: &str, pkg: &str) -> Result<(String, String), String> {

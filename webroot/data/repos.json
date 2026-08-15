@@ -1,38 +1,11 @@
 [
   {
-    "id": "bun",
-    "name": "Bun",
-    "desc": "极快的现代 JavaScript/TypeScript 运行时与打包工具",
-    "category": "编程语言",
-    "type": "termux",
-    "pkg": "bun",
-    "core": false
-  },
-  {
-    "id": "clojure",
-    "name": "Clojure",
-    "desc": "运行于 JVM 的 Lisp 家族函数式语言",
-    "category": "编程语言",
-    "type": "termux",
-    "pkg": "clojure",
-    "core": false
-  },
-  {
     "id": "crystal",
     "name": "Crystal",
     "desc": "语法接近 Ruby 的编译型静态语言",
     "category": "编程语言",
     "type": "termux",
     "pkg": "crystal",
-    "core": false
-  },
-  {
-    "id": "dlang",
-    "name": "D 语言",
-    "desc": "兼顾性能与生产力的系统语言",
-    "category": "编程语言",
-    "type": "termux",
-    "pkg": "dmd",
     "core": false
   },
   {
@@ -69,24 +42,6 @@
     "category": "编程语言",
     "type": "termux",
     "pkg": "erlang",
-    "core": false
-  },
-  {
-    "id": "fortran",
-    "name": "Fortran",
-    "desc": "科学计算领域经典的编译型语言",
-    "category": "编程语言",
-    "type": "termux",
-    "pkg": "gcc-fortran",
-    "core": false
-  },
-  {
-    "id": "fpc",
-    "name": "Free Pascal",
-    "desc": "免费的 Pascal 编译器与开发环境",
-    "category": "编程语言",
-    "type": "termux",
-    "pkg": "fpc",
     "core": false
   },
   {
@@ -153,15 +108,6 @@
     "core": false
   },
   {
-    "id": "julia",
-    "name": "Julia",
-    "desc": "面向科学计算的高性能动态编程语言",
-    "category": "编程语言",
-    "type": "termux",
-    "pkg": "julia",
-    "core": false
-  },
-  {
     "id": "kotlin",
     "name": "Kotlin",
     "desc": "运行于 JVM 的现代静态类型编程语言",
@@ -176,7 +122,7 @@
     "desc": "轻量小巧的嵌入式脚本语言解释器",
     "category": "编程语言",
     "type": "termux",
-    "pkg": "lua",
+    "pkg": "lua54",
     "core": false
   },
   {
@@ -195,15 +141,6 @@
     "category": "编程语言",
     "type": "termux",
     "pkg": "nodejs",
-    "core": false
-  },
-  {
-    "id": "ocaml",
-    "name": "OCaml",
-    "desc": "强类型函数式与命令式结合的编程语言",
-    "category": "编程语言",
-    "type": "termux",
-    "pkg": "ocaml",
     "core": false
   },
   {
@@ -234,30 +171,12 @@
     "core": false
   },
   {
-    "id": "powershell",
-    "name": "PowerShell",
-    "desc": "微软出品的跨平台自动化命令行",
-    "category": "编程语言",
-    "type": "termux",
-    "pkg": "powershell",
-    "core": false
-  },
-  {
     "id": "python3",
     "name": "Python 3",
     "desc": "强大的通用编程语言解释器，内置丰富的标准库",
     "category": "编程语言",
     "type": "termux",
     "pkg": "python",
-    "core": false
-  },
-  {
-    "id": "rlang",
-    "name": "R 语言",
-    "desc": "统计分析、数据科学专用的开源编程语言",
-    "category": "编程语言",
-    "type": "termux",
-    "pkg": "r",
     "core": false
   },
   {
@@ -333,21 +252,12 @@
     "core": false
   },
   {
-    "id": "vlang",
-    "name": "V 语言",
-    "desc": "简洁快速的系统编程语言编译器",
-    "category": "编程语言",
-    "type": "termux",
-    "pkg": "vlang",
-    "core": false
-  },
-  {
     "id": "vala",
     "name": "Vala",
     "desc": "面向 GNOME 的现代面向对象语言",
     "category": "编程语言",
     "type": "termux",
-    "pkg": "vala",
+    "pkg": "valac",
     "core": false
   },
   {
@@ -387,15 +297,6 @@
     "core": false
   },
   {
-    "id": "bind",
-    "name": "BIND",
-    "desc": "最权威的开源 DNS 域名解析服务器",
-    "category": "网络工具",
-    "type": "termux",
-    "pkg": "bind",
-    "core": false
-  },
-  {
     "id": "caddy",
     "name": "Caddy",
     "desc": "自动 HTTPS 的现代轻量 Web 服务器",
@@ -423,15 +324,6 @@
     "core": false
   },
   {
-    "id": "dnsmasq",
-    "name": "Dnsmasq",
-    "desc": "轻量级 DNS 转发与 DHCP 服务器",
-    "category": "网络工具",
-    "type": "termux",
-    "pkg": "dnsmasq",
-    "core": false
-  },
-  {
     "id": "frp",
     "name": "frp",
     "desc": "内网穿透神器，把内网服务映射到公网",
@@ -447,24 +339,6 @@
     "category": "网络工具",
     "type": "termux",
     "pkg": "haproxy",
-    "core": false
-  },
-  {
-    "id": "hping3",
-    "name": "hping3",
-    "desc": "高级网络测试：自定义 TCP/UDP/ICMP 包",
-    "category": "网络工具",
-    "type": "termux",
-    "pkg": "hping3",
-    "core": false
-  },
-  {
-    "id": "iftop",
-    "name": "iftop",
-    "desc": "实时查看各连接的带宽占用",
-    "category": "网络工具",
-    "type": "termux",
-    "pkg": "iftop",
     "core": false
   },
   {
@@ -522,30 +396,12 @@
     "core": false
   },
   {
-    "id": "masscan",
-    "name": "Masscan",
-    "desc": "号称全网最快的端口扫描工具",
-    "category": "网络工具",
-    "type": "termux",
-    "pkg": "masscan",
-    "core": false
-  },
-  {
     "id": "mosquitto",
     "name": "Mosquitto",
     "desc": "轻量可靠的 MQTT 消息代理服务器",
     "category": "网络工具",
     "type": "termux",
     "pkg": "mosquitto",
-    "core": false
-  },
-  {
-    "id": "mtr",
-    "name": "MTR",
-    "desc": "结合 ping 与 traceroute 的网络诊断工具",
-    "category": "网络工具",
-    "type": "termux",
-    "pkg": "mtr",
     "core": false
   },
   {
@@ -563,7 +419,7 @@
     "desc": "被称为网络瑞士军刀的 TCP/UDP 调试工具",
     "category": "网络工具",
     "type": "termux",
-    "pkg": "netcat",
+    "pkg": "netcat-openbsd",
     "core": false
   },
   {
@@ -573,15 +429,6 @@
     "category": "网络工具",
     "type": "termux",
     "pkg": "nginx",
-    "core": false
-  },
-  {
-    "id": "nload",
-    "name": "nload",
-    "desc": "直观显示网卡实时流量图表",
-    "category": "网络工具",
-    "type": "termux",
-    "pkg": "nload",
     "core": false
   },
   {
@@ -610,15 +457,6 @@
     "type": "bundled",
     "pkg": "openssl",
     "core": true
-  },
-  {
-    "id": "openvpn",
-    "name": "OpenVPN",
-    "desc": "成熟稳定的开源 VPN 客户端",
-    "category": "网络工具",
-    "type": "termux",
-    "pkg": "openvpn",
-    "core": false
   },
   {
     "id": "proxychains-ng",
@@ -666,24 +504,6 @@
     "core": false
   },
   {
-    "id": "tcpdump",
-    "name": "Tcpdump",
-    "desc": "经典命令行网络数据包抓包分析工具",
-    "category": "网络工具",
-    "type": "termux",
-    "pkg": "tcpdump",
-    "core": false
-  },
-  {
-    "id": "telnet",
-    "name": "Telnet",
-    "desc": "经典远程终端连接协议客户端",
-    "category": "网络工具",
-    "type": "termux",
-    "pkg": "telnet",
-    "core": false
-  },
-  {
     "id": "tinyproxy",
     "name": "Tinyproxy",
     "desc": "轻量小巧的 HTTP/HTTPS 代理服务器",
@@ -699,15 +519,6 @@
     "category": "网络工具",
     "type": "termux",
     "pkg": "tor",
-    "core": false
-  },
-  {
-    "id": "vsftpd",
-    "name": "vsftpd",
-    "desc": "轻量安全的 FTP 文件服务器",
-    "category": "网络工具",
-    "type": "termux",
-    "pkg": "vsftpd",
     "core": false
   },
   {
@@ -774,15 +585,6 @@
     "core": false
   },
   {
-    "id": "erofs-utils",
-    "name": "EROFS 工具",
-    "desc": "安卓系统使用的只读文件系统工具",
-    "category": "压缩打包",
-    "type": "termux",
-    "pkg": "erofs-utils",
-    "core": false
-  },
-  {
     "id": "gzip",
     "name": "Gzip",
     "desc": "广泛使用的 .gz 文件压缩与解压工具",
@@ -797,7 +599,7 @@
     "desc": "经典 .lzh 压缩格式工具",
     "category": "压缩打包",
     "type": "termux",
-    "pkg": "lha",
+    "pkg": "lhasa",
     "core": false
   },
   {
@@ -846,15 +648,6 @@
     "core": false
   },
   {
-    "id": "pbzip2",
-    "name": "pbzip2",
-    "desc": "并行版 bzip2 压缩工具",
-    "category": "压缩打包",
-    "type": "termux",
-    "pkg": "pbzip2",
-    "core": false
-  },
-  {
     "id": "pigz",
     "name": "Pigz",
     "desc": "并行版 gzip，多核压缩更快",
@@ -864,21 +657,12 @@
     "core": false
   },
   {
-    "id": "rar",
-    "name": "RAR",
-    "desc": "官方 RAR 压缩与解压工具",
-    "category": "压缩打包",
-    "type": "termux",
-    "pkg": "rar",
-    "core": false
-  },
-  {
     "id": "squashfs-tools",
     "name": "SquashFS 工具",
     "desc": "只读压缩文件系统制作工具",
     "category": "压缩打包",
     "type": "termux",
-    "pkg": "squashfs-tools",
+    "pkg": "squashfs-tools-ng",
     "core": false
   },
   {
@@ -923,7 +707,7 @@
     "desc": "极高压缩比的 .xz 文件压缩与解压工具",
     "category": "压缩打包",
     "type": "bundled",
-    "pkg": "xz",
+    "pkg": "xz-utils",
     "core": true
   },
   {
@@ -959,7 +743,7 @@
     "desc": "擅长文本分析与数据处理的脚本工具",
     "category": "文本处理",
     "type": "bundled",
-    "pkg": "awk",
+    "pkg": "gawk",
     "core": true
   },
   {
@@ -1098,15 +882,6 @@
     "core": true
   },
   {
-    "id": "man-db",
-    "name": "man-db",
-    "desc": "经典的手册页（man）查看系统",
-    "category": "文本处理",
-    "type": "termux",
-    "pkg": "man-db",
-    "core": false
-  },
-  {
     "id": "micro",
     "name": "Micro",
     "desc": "现代易用的终端编辑器，开箱即用",
@@ -1206,24 +981,6 @@
     "core": true
   },
   {
-    "id": "the_silver_searcher",
-    "name": "The Silver Searcher",
-    "desc": "代码搜索神器 ag",
-    "category": "文本处理",
-    "type": "termux",
-    "pkg": "the_silver_searcher",
-    "core": false
-  },
-  {
-    "id": "tldr",
-    "name": "tldr",
-    "desc": "简明版的命令帮助文档",
-    "category": "文本处理",
-    "type": "termux",
-    "pkg": "tldr",
-    "core": false
-  },
-  {
     "id": "tmux",
     "name": "Tmux",
     "desc": "终端复用与多会话管理工具",
@@ -1251,30 +1008,12 @@
     "core": false
   },
   {
-    "id": "universal-ctags",
-    "name": "Universal Ctags",
-    "desc": "代码标签索引生成工具",
-    "category": "文本处理",
-    "type": "termux",
-    "pkg": "universal-ctags",
-    "core": false
-  },
-  {
     "id": "vim",
     "name": "Vim",
     "desc": "功能强大的经典模式化文本编辑器",
     "category": "文本处理",
     "type": "termux",
     "pkg": "vim",
-    "core": false
-  },
-  {
-    "id": "xsv",
-    "name": "xsv",
-    "desc": "超快的 CSV 数据处理工具",
-    "category": "文本处理",
-    "type": "termux",
-    "pkg": "xsv",
     "core": false
   },
   {
@@ -1338,24 +1077,6 @@
     "category": "系统工具",
     "type": "termux",
     "pkg": "bison",
-    "core": false
-  },
-  {
-    "id": "bottom",
-    "name": "bottom",
-    "desc": "轻量美观的系统监控工具",
-    "category": "系统工具",
-    "type": "termux",
-    "pkg": "bottom",
-    "core": false
-  },
-  {
-    "id": "btop",
-    "name": "btop",
-    "desc": "图形化的系统资源监控面板",
-    "category": "系统工具",
-    "type": "termux",
-    "pkg": "btop",
     "core": false
   },
   {
@@ -1467,15 +1188,6 @@
     "core": false
   },
   {
-    "id": "gcc",
-    "name": "GCC",
-    "desc": "GNU 编译器套件，支持 C/C++ 等语言",
-    "category": "系统工具",
-    "type": "termux",
-    "pkg": "gcc",
-    "core": false
-  },
-  {
     "id": "gdb",
     "name": "GDB",
     "desc": "功能强大的 GNU 程序调试器",
@@ -1494,15 +1206,6 @@
     "core": true
   },
   {
-    "id": "hdparm",
-    "name": "hdparm",
-    "desc": "磁盘参数查看与设置、缓存读写测试",
-    "category": "系统工具",
-    "type": "termux",
-    "pkg": "hdparm",
-    "core": false
-  },
-  {
     "id": "hyperfine",
     "name": "hyperfine",
     "desc": "命令行基准测试工具：比较两条命令谁更快",
@@ -1518,15 +1221,6 @@
     "category": "系统工具",
     "type": "termux",
     "pkg": "inotify-tools",
-    "core": false
-  },
-  {
-    "id": "iotop",
-    "name": "iotop",
-    "desc": "实时查看磁盘读写进程",
-    "category": "系统工具",
-    "type": "termux",
-    "pkg": "iotop",
     "core": false
   },
   {
@@ -1575,30 +1269,12 @@
     "core": false
   },
   {
-    "id": "meson",
-    "name": "Meson",
-    "desc": "快速友好的现代构建系统",
-    "category": "系统工具",
-    "type": "termux",
-    "pkg": "meson",
-    "core": false
-  },
-  {
     "id": "ncdu",
     "name": "ncdu",
     "desc": "终端下的磁盘占用分析器",
     "category": "系统工具",
     "type": "termux",
     "pkg": "ncdu",
-    "core": false
-  },
-  {
-    "id": "nethogs",
-    "name": "NetHogs",
-    "desc": "按进程查看网络流量",
-    "category": "系统工具",
-    "type": "termux",
-    "pkg": "nethogs",
     "core": false
   },
   {
@@ -1611,21 +1287,12 @@
     "core": false
   },
   {
-    "id": "pciutils",
-    "name": "PCI 工具",
-    "desc": "查看 PCI 设备列表（lspci）",
-    "category": "系统工具",
-    "type": "termux",
-    "pkg": "pciutils",
-    "core": false
-  },
-  {
     "id": "pkgconf",
     "name": "pkg-config",
     "desc": "库编译参数自动查找工具",
     "category": "系统工具",
     "type": "termux",
-    "pkg": "pkgconf",
+    "pkg": "pkg-config",
     "core": false
   },
   {
@@ -1665,15 +1332,6 @@
     "core": false
   },
   {
-    "id": "smartmontools",
-    "name": "Smartmontools",
-    "desc": "硬盘健康监测：smartctl 查看 SMART 状态",
-    "category": "系统工具",
-    "type": "termux",
-    "pkg": "smartmontools",
-    "core": false
-  },
-  {
     "id": "sqlite3",
     "name": "SQLite3",
     "desc": "轻量嵌入式 SQL 数据库的命令行工具",
@@ -1701,30 +1359,12 @@
     "core": false
   },
   {
-    "id": "sysstat",
-    "name": "Sysstat",
-    "desc": "系统性能统计：iostat、sar、mpstat、pidstat",
-    "category": "系统工具",
-    "type": "termux",
-    "pkg": "sysstat",
-    "core": false
-  },
-  {
     "id": "termux-api",
     "name": "Termux API",
     "desc": "调用手机传感器等系统接口",
     "category": "系统工具",
     "type": "termux",
     "pkg": "termux-api",
-    "core": false
-  },
-  {
-    "id": "usbutils",
-    "name": "USB 工具",
-    "desc": "查看 USB 设备列表（lsusb）",
-    "category": "系统工具",
-    "type": "termux",
-    "pkg": "usbutils",
     "core": false
   },
   {
@@ -1746,24 +1386,6 @@
     "core": false
   },
   {
-    "id": "couchdb",
-    "name": "CouchDB",
-    "desc": "面向文档的 NoSQL 数据库",
-    "category": "数据库",
-    "type": "termux",
-    "pkg": "couchdb",
-    "core": false
-  },
-  {
-    "id": "etcd",
-    "name": "etcd",
-    "desc": "分布式系统用的键值数据库",
-    "category": "数据库",
-    "type": "termux",
-    "pkg": "etcd",
-    "core": false
-  },
-  {
     "id": "mariadb",
     "name": "MariaDB",
     "desc": "开源关系型数据库服务器，MySQL 分支",
@@ -1782,30 +1404,12 @@
     "core": false
   },
   {
-    "id": "mongosh",
-    "name": "MongoDB Shell",
-    "desc": "MongoDB 数据库的官方命令行客户端",
-    "category": "数据库",
-    "type": "termux",
-    "pkg": "mongosh",
-    "core": false
-  },
-  {
     "id": "postgresql",
     "name": "PostgreSQL",
     "desc": "功能强大的开源关系型数据库服务器",
     "category": "数据库",
     "type": "termux",
     "pkg": "postgresql",
-    "core": false
-  },
-  {
-    "id": "rqlite",
-    "name": "rqlite",
-    "desc": "轻量分布式 SQLite 集群",
-    "category": "数据库",
-    "type": "termux",
-    "pkg": "rqlite",
     "core": false
   },
   {
@@ -1944,15 +1548,6 @@
     "core": false
   },
   {
-    "id": "mkvtoolnix",
-    "name": "MKVToolNix",
-    "desc": "MKV 视频封装/拆解与字幕处理",
-    "category": "多媒体",
-    "type": "termux",
-    "pkg": "mkvtoolnix",
-    "core": false
-  },
-  {
     "id": "mpd",
     "name": "MPD",
     "desc": "轻量的音乐播放守护进程",
@@ -2007,15 +1602,6 @@
     "core": false
   },
   {
-    "id": "streamlink",
-    "name": "Streamlink",
-    "desc": "把直播流保存为视频文件",
-    "category": "多媒体",
-    "type": "termux",
-    "pkg": "streamlink",
-    "core": false
-  },
-  {
     "id": "vlc",
     "name": "VLC",
     "desc": "支持几乎所有格式的全能媒体播放器",
@@ -2031,15 +1617,6 @@
     "category": "多媒体",
     "type": "termux",
     "pkg": "vorbis-tools",
-    "core": false
-  },
-  {
-    "id": "webp",
-    "name": "WebP 工具",
-    "desc": "谷歌 WebP 图片格式转换工具",
-    "category": "多媒体",
-    "type": "termux",
-    "pkg": "webp",
     "core": false
   },
   {
@@ -2061,57 +1638,12 @@
     "core": false
   },
   {
-    "id": "youtube-dl",
-    "name": "youtube-dl",
-    "desc": "经典的开源视频下载工具",
-    "category": "多媒体",
-    "type": "termux",
-    "pkg": "youtube-dl",
-    "core": false
-  },
-  {
-    "id": "yt-dlp",
-    "name": "yt-dlp",
-    "desc": "从主流视频网站下载媒体内容的命令行工具",
-    "category": "多媒体",
-    "type": "termux",
-    "pkg": "yt-dlp",
-    "core": false
-  },
-  {
     "id": "age",
     "name": "age",
     "desc": "简单现代的加密工具",
     "category": "安全工具",
     "type": "termux",
     "pkg": "age",
-    "core": false
-  },
-  {
-    "id": "aircrack-ng",
-    "name": "Aircrack-ng",
-    "desc": "无线网络审计与 WEP/WPA 破解工具套件",
-    "category": "安全工具",
-    "type": "termux",
-    "pkg": "aircrack-ng",
-    "core": false
-  },
-  {
-    "id": "amass",
-    "name": "Amass",
-    "desc": "深度资产与子域枚举工具",
-    "category": "安全工具",
-    "type": "termux",
-    "pkg": "amass",
-    "core": false
-  },
-  {
-    "id": "bettercap",
-    "name": "bettercap",
-    "desc": "模块化的中间人攻击框架",
-    "category": "安全工具",
-    "type": "termux",
-    "pkg": "bettercap",
     "core": false
   },
   {
@@ -2133,219 +1665,12 @@
     "core": false
   },
   {
-    "id": "dsniff",
-    "name": "dsniff",
-    "desc": "arpspoof 等网络嗅探套件",
-    "category": "安全工具",
-    "type": "termux",
-    "pkg": "dsniff",
-    "core": false
-  },
-  {
-    "id": "exploitdb",
-    "name": "ExploitDB",
-    "desc": "searchsploit 漏洞利用数据库检索",
-    "category": "安全工具",
-    "type": "termux",
-    "pkg": "exploitdb",
-    "core": false
-  },
-  {
-    "id": "fcrackzip",
-    "name": "fcrackzip",
-    "desc": "ZIP 压缩包密码爆破",
-    "category": "安全工具",
-    "type": "termux",
-    "pkg": "fcrackzip",
-    "core": false
-  },
-  {
-    "id": "ffuf",
-    "name": "ffuf",
-    "desc": "极快的 Web 目录/参数模糊测试器",
-    "category": "安全工具",
-    "type": "termux",
-    "pkg": "ffuf",
-    "core": false
-  },
-  {
-    "id": "foremost",
-    "name": "Foremost",
-    "desc": "基于文件头恢复已删除文件的数据取证工具",
-    "category": "安全工具",
-    "type": "termux",
-    "pkg": "foremost",
-    "core": false
-  },
-  {
     "id": "gnupg",
     "name": "GnuPG",
     "desc": "文件加密与签名（gpg）",
     "category": "安全工具",
     "type": "termux",
     "pkg": "gnupg",
-    "core": false
-  },
-  {
-    "id": "gobuster",
-    "name": "Gobuster",
-    "desc": "用于目录与子域名爆破的 Go 工具",
-    "category": "安全工具",
-    "type": "termux",
-    "pkg": "gobuster",
-    "core": false
-  },
-  {
-    "id": "hashcat",
-    "name": "Hashcat",
-    "desc": "GPU 加速的极速口令哈希破解工具",
-    "category": "安全工具",
-    "type": "termux",
-    "pkg": "hashcat",
-    "core": false
-  },
-  {
-    "id": "hydra",
-    "name": "Hydra",
-    "desc": "支持多协议在线口令爆破工具",
-    "category": "安全工具",
-    "type": "termux",
-    "pkg": "hydra",
-    "core": false
-  },
-  {
-    "id": "john",
-    "name": "John the Ripper",
-    "desc": "著名的离线口令破解工具",
-    "category": "安全工具",
-    "type": "termux",
-    "pkg": "john",
-    "core": false
-  },
-  {
-    "id": "lynis",
-    "name": "Lynis",
-    "desc": "系统安全审计与加固建议",
-    "category": "安全工具",
-    "type": "termux",
-    "pkg": "lynis",
-    "core": false
-  },
-  {
-    "id": "macchanger",
-    "name": "macchanger",
-    "desc": "修改网卡 MAC 地址",
-    "category": "安全工具",
-    "type": "termux",
-    "pkg": "macchanger",
-    "core": false
-  },
-  {
-    "id": "metasploit",
-    "name": "Metasploit",
-    "desc": "最著名的渗透测试与漏洞利用框架",
-    "category": "安全工具",
-    "type": "termux",
-    "pkg": "metasploit",
-    "core": false
-  },
-  {
-    "id": "nikto",
-    "name": "Nikto",
-    "desc": "Web 服务器漏洞扫描工具",
-    "category": "安全工具",
-    "type": "termux",
-    "pkg": "nikto",
-    "core": false
-  },
-  {
-    "id": "nuclei",
-    "name": "Nuclei",
-    "desc": "基于模板的快速漏洞扫描器",
-    "category": "安全工具",
-    "type": "termux",
-    "pkg": "nuclei",
-    "core": false
-  },
-  {
-    "id": "responder",
-    "name": "Responder",
-    "desc": "局域网 LLMNR/NBT-NS 毒化工具",
-    "category": "安全工具",
-    "type": "termux",
-    "pkg": "responder",
-    "core": false
-  },
-  {
-    "id": "sherlock",
-    "name": "Sherlock",
-    "desc": "跨平台社交账号用户名搜索",
-    "category": "安全工具",
-    "type": "termux",
-    "pkg": "sherlock",
-    "core": false
-  },
-  {
-    "id": "sqlmap",
-    "name": "SQLMap",
-    "desc": "自动化 SQL 注入检测与利用工具",
-    "category": "安全工具",
-    "type": "termux",
-    "pkg": "sqlmap",
-    "core": false
-  },
-  {
-    "id": "subfinder",
-    "name": "Subfinder",
-    "desc": "快速收集子域名的工具",
-    "category": "安全工具",
-    "type": "termux",
-    "pkg": "subfinder",
-    "core": false
-  },
-  {
-    "id": "sublist3r",
-    "name": "Sublist3r",
-    "desc": "子域名快速枚举工具",
-    "category": "安全工具",
-    "type": "termux",
-    "pkg": "sublist3r",
-    "core": false
-  },
-  {
-    "id": "theharvester",
-    "name": "theHarvester",
-    "desc": "被动信息收集与邮箱搜集",
-    "category": "安全工具",
-    "type": "termux",
-    "pkg": "theharvester",
-    "core": false
-  },
-  {
-    "id": "tshark",
-    "name": "Tshark",
-    "desc": "Wireshark 的命令行抓包分析版本",
-    "category": "安全工具",
-    "type": "termux",
-    "pkg": "tshark",
-    "core": false
-  },
-  {
-    "id": "wafw00f",
-    "name": "wafw00f",
-    "desc": "识别网站是否套了 WAF",
-    "category": "安全工具",
-    "type": "termux",
-    "pkg": "wafw00f",
-    "core": false
-  },
-  {
-    "id": "wireshark",
-    "name": "Wireshark",
-    "desc": "图形化的网络协议分析与抓包工具",
-    "category": "安全工具",
-    "type": "termux",
-    "pkg": "wireshark",
     "core": false
   },
   {
@@ -2364,15 +1689,6 @@
     "category": "文件系统",
     "type": "termux",
     "pkg": "btrfs-progs",
-    "core": false
-  },
-  {
-    "id": "cryptsetup",
-    "name": "cryptsetup",
-    "desc": "LUKS 磁盘加密工具",
-    "category": "文件系统",
-    "type": "termux",
-    "pkg": "cryptsetup",
     "core": false
   },
   {
@@ -2403,24 +1719,6 @@
     "core": false
   },
   {
-    "id": "exfat-utils",
-    "name": "exFAT Utils",
-    "desc": "exFAT 文件系统的创建与维护工具",
-    "category": "文件系统",
-    "type": "termux",
-    "pkg": "exfat-utils",
-    "core": false
-  },
-  {
-    "id": "f2fs-tools",
-    "name": "F2FS 工具",
-    "desc": "安卓闪存友好的文件系统工具",
-    "category": "文件系统",
-    "type": "termux",
-    "pkg": "f2fs-tools",
-    "core": false
-  },
-  {
     "id": "fdupes",
     "name": "fdupes",
     "desc": "查找并清理重复文件，释放空间",
@@ -2430,75 +1728,12 @@
     "core": false
   },
   {
-    "id": "fuse",
-    "name": "FUSE",
-    "desc": "用户态文件系统框架及相关工具",
-    "category": "文件系统",
-    "type": "termux",
-    "pkg": "fuse",
-    "core": false
-  },
-  {
-    "id": "mergerfs",
-    "name": "Mergerfs",
-    "desc": "将多个存储卷合并为单一视图的文件系统",
-    "category": "文件系统",
-    "type": "termux",
-    "pkg": "mergerfs",
-    "core": false
-  },
-  {
-    "id": "ntfs-3g",
-    "name": "NTFS-3G",
-    "desc": "可读写挂载 NTFS 文件系统的驱动工具",
-    "category": "文件系统",
-    "type": "termux",
-    "pkg": "ntfs-3g",
-    "core": false
-  },
-  {
     "id": "rclone",
     "name": "Rclone",
     "desc": "同步文件到各类云存储的命令行工具",
     "category": "文件系统",
     "type": "termux",
     "pkg": "rclone",
-    "core": false
-  },
-  {
-    "id": "sshfs",
-    "name": "SSHFS",
-    "desc": "通过 SSH 挂载远程文件系统的工具",
-    "category": "文件系统",
-    "type": "termux",
-    "pkg": "sshfs",
-    "core": false
-  },
-  {
-    "id": "xfsprogs",
-    "name": "XFS 工具",
-    "desc": "XFS 文件系统管理工具",
-    "category": "文件系统",
-    "type": "termux",
-    "pkg": "xfsprogs",
-    "core": false
-  },
-  {
-    "id": "ansiweather",
-    "name": "AnsiWeather",
-    "desc": "终端里显示天气预报",
-    "category": "其他工具",
-    "type": "termux",
-    "pkg": "ansiweather",
-    "core": false
-  },
-  {
-    "id": "asciiquarium",
-    "name": "Asciiquarium",
-    "desc": "终端里游动着海底世界的 ASCII 动画",
-    "category": "其他工具",
-    "type": "termux",
-    "pkg": "asciiquarium",
     "core": false
   },
   {
@@ -2562,15 +1797,6 @@
     "category": "其他工具",
     "type": "termux",
     "pkg": "cpufetch",
-    "core": false
-  },
-  {
-    "id": "delta",
-    "name": "delta",
-    "desc": "Git diff 高亮增强工具",
-    "category": "其他工具",
-    "type": "termux",
-    "pkg": "delta",
     "core": false
   },
   {
@@ -2642,7 +1868,7 @@
     "desc": "官方 GitLab 命令行工具",
     "category": "其他工具",
     "type": "termux",
-    "pkg": "glab",
+    "pkg": "glab-cli",
     "core": false
   },
   {
@@ -2655,30 +1881,12 @@
     "core": false
   },
   {
-    "id": "lolcat",
-    "name": "Lolcat",
-    "desc": "为终端输出添加彩虹渐变色效果的工具",
-    "category": "其他工具",
-    "type": "termux",
-    "pkg": "lolcat",
-    "core": false
-  },
-  {
     "id": "lynx",
     "name": "Lynx",
     "desc": "经典的纯文本网页浏览器",
     "category": "其他工具",
     "type": "termux",
     "pkg": "lynx",
-    "core": false
-  },
-  {
-    "id": "mbuffer",
-    "name": "Mbuffer",
-    "desc": "带缓冲与校验的多路数据流传输工具",
-    "category": "其他工具",
-    "type": "termux",
-    "pkg": "mbuffer",
     "core": false
   },
   {
@@ -2796,15 +2004,6 @@
     "category": "其他工具",
     "type": "termux",
     "pkg": "sl",
-    "core": false
-  },
-  {
-    "id": "speedtest-cli",
-    "name": "Speedtest CLI",
-    "desc": "命令行网速测试工具",
-    "category": "其他工具",
-    "type": "termux",
-    "pkg": "speedtest-cli",
     "core": false
   },
   {

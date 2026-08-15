@@ -1,11 +1,11 @@
 //! LibPool 原生管理工具（Rust）
 //! Copyright (C) 2026 MINO · Himer (MineACE)
 //! SPDX-License-Identifier: Apache-2.0
-//! 功能：list / status / install / remove / mount / unmount / toggle / apply / ensure-core / reset
+//! 功能：list / status / install / install-local / remove / mount / unmount / toggle / apply / ensure-core / reset
 //! 设计要点：
 //! - 仅依赖 std + 内置极简 JSON（零外部 crate，方便纯静态交叉编译）
-//! - 所有下载 / 解压动作调用外部工具（curl / busybox wget / tar / xz / unzip），
-//!   这些工具本身也是模块捆绑库，保证开机即有。
+//! - 下载优先 shell 的 curl/wget；设备缺 TLS 工具时自动回退「纯 Rust 明文 HTTP + 国内镜像」，
+//!   解压动作调用外部工具（tar / xz / unzip），这些工具本身也是模块捆绑库，保证开机即有。
 //! - 挂载用 bind mount，卸载用 umount，均幂等。
 
 mod ar;
@@ -25,7 +25,8 @@ fn usage() -> String {
 命令:
   list                列出所有库及状态（JSON）
   status              简要状态（JSON）
-  install <id>        下载并安装扩展库
+  install <id>        下载并安装扩展库（自动镜像回退）
+  install-local <id> <deb路径>  从本地 .deb 安装（不联网，适合 WebUI 已下载的场景）
   remove <id>         删除已安装的库（含卸载）
   mount <id>          挂载指定库到 /system/bin、/system/lib
   unmount <id>        卸载指定库
@@ -60,6 +61,13 @@ fn main() -> ExitCode {
                 return ExitCode::from(1);
             }
             install_cmd(&dir, &args[1])
+        }
+        "install-local" => {
+            if args.len() < 3 {
+                eprintln!("用法: libman install-local <id> <deb路径>");
+                return ExitCode::from(1);
+            }
+            install_local_cmd(&dir, &args[1], &args[2])
         }
         "remove" => {
             if args.len() < 2 {
@@ -129,6 +137,11 @@ fn install_cmd(dir: &str, id: &str) -> Result<(), String> {
         .find(|r| r.id == id)
         .ok_or_else(|| format!("仓库中不存在库: {id}"))?;
     repo::install_lib(dir, entry, true)
+}
+
+/// 从本地 .deb 安装（WebUI 已把 .deb 下载到本地，走这条不联网路径）。
+fn install_local_cmd(dir: &str, id: &str, deb_path: &str) -> Result<(), String> {
+    repo::install_local_lib(dir, id, deb_path, true)
 }
 
 fn remove_cmd(dir: &str, id: &str) -> Result<(), String> {

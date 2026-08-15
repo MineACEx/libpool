@@ -15,7 +15,7 @@
  */
 
 import {
-  exec, spawn, toast, moduleInfo, fullScreen, enableEdgeToEdge,
+  exec, toast, moduleInfo, fullScreen, enableEdgeToEdge,
 } from "./kernelsu.js";
 
 /* ---------------- 全局状态 ---------------- */
@@ -28,7 +28,6 @@ const state = {
   mirror: "",
   inPreview: false,
   cancelRequested: false, // 下载取消标记
-  activeChild: null,      // 当前活跃的 spawn child
 };
 
 /* 公告网址（指向本仓库 announce.md，内容为 Markdown，每天最多弹一次）。
@@ -109,30 +108,6 @@ async function libmanExec(args) {
   const r = await exec(libmanCmd(args));
   if (r.errno !== 0) throw new Error((r.stderr || "执行失败").trim());
   return r.stdout || "";
-}
-
-async function libmanSpawn(args, onData) {
-  return new Promise((resolve, reject) => {
-    const child = spawn("sh", ["-c", libmanCmd(args)]);
-    state.activeChild = child; // 供取消时定位进程
-    let err = "";
-    child.stderr.on("data", (d) => {
-      err += d;
-      if (onData) onData(String(d));
-    });
-    child.stdout.on("data", (d) => {
-      if (onData) onData(String(d));
-    });
-    child.on("exit", (code) => {
-      if (state.activeChild === child) state.activeChild = null;
-      if (code === 0) resolve();
-      else reject(new Error((err || "执行失败").trim()));
-    });
-    child.on("error", (e) => {
-      if (state.activeChild === child) state.activeChild = null;
-      reject(e);
-    });
-  });
 }
 
 /* ---------------- 数据加载 ---------------- */
@@ -366,11 +341,9 @@ async function installLib(id) {
   state.cancelRequested = false;
   showOverlay(`正在下载 ${lib ? lib.name : id}`, "请保持页面打开…");
   try {
-    await libmanSpawn(`install ${id}`, (line) => {
-      if (state.cancelRequested) return;
-      const t = line.replace(/\s+/g, " ").trim();
-      if (t) $("overlaySub").textContent = t.length > 42 ? t.slice(0, 42) + "…" : t;
-    });
+    // 用 exec 执行安装（KsuWebUI 本版本的 spawn 桥接不可靠，install 从未真正跑起来；
+    // exec 会等命令跑完，下载/解压/镜像回退全程日志写入 logs/libman.log，便于排查）
+    await libmanExec(`install ${id}`);
     if (state.cancelRequested) return; // 用户已取消
     hideOverlay();
     logWebui(`下载完成: ${id}`);

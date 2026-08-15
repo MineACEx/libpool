@@ -156,6 +156,10 @@ fn find_shell() -> (String, Vec<String>) {
 }
 
 /// 下载文件到指定路径。
+///
+/// 顺序：
+/// 1. shell 工具（curl / busybox wget / wget）——设备自带可用 TLS 时最稳，支持 https；
+/// 2. 纯 Rust 的 http_get（仅 http://，零 TLS 依赖）——设备缺 curl/wget 且镜像走明文 HTTP 时兜底。
 pub fn download(url: &str, dest: &str) -> Result<(), String> {
     let _ = std::fs::create_dir_all(std::path::Path::new(dest).parent().unwrap_or(std::path::Path::new("/")));
     let cmds = [
@@ -165,15 +169,236 @@ pub fn download(url: &str, dest: &str) -> Result<(), String> {
     ];
     for c in &cmds {
         if let Ok((ok, _, _)) = run(c, Some(120)) {
-            if ok && std::path::Path::new(dest).exists() {
-                let size = std::fs::metadata(dest).map(|m| m.len()).unwrap_or(0);
-                if size > 0 {
-                    return Ok(());
-                }
+            if ok && file_nonempty(dest) {
+                return Ok(());
             }
         }
     }
+    // 纯 Rust HTTP：只支持 http://；https:// 必须依赖 shell 的 TLS 工具。
+    if url.starts_with("http://") {
+        let _ = std::fs::remove_file(dest);
+        if http_get(url, dest, 120).is_ok() && file_nonempty(dest) {
+            return Ok(());
+        }
+    }
+    let _ = std::fs::remove_file(dest);
     Err(format!("下载失败: {url}"))
+}
+
+fn file_nonempty(p: &str) -> bool {
+    std::fs::metadata(p).map(|m| m.len() > 0).unwrap_or(false)
+}
+
+/// 找到响应头结束位置（\r\n\r\n 的末尾），返回头部总长度；找不到返回 None。
+fn find_crlfcrlf(data: &[u8]) -> Option<usize> {
+    data.windows(4).position(|w| w == b"\r\n\r\n").map(|p| p + 4)
+}
+
+/// 极简 HTTP/1.1 GET 客户端（仅 http://，无 TLS 依赖）。
+///
+/// 用于设备缺少 curl/wget（或 busybox wget 不支持 TLS）时下载明文 HTTP 镜像。
+/// 支持 Content-Length 与 chunked 响应体；支持 http->http 重定向（最多 6 跳，
+/// http->https 不支持，会明确报错提示改用支持明文 HTTP 的镜像）。
+/// 成功则把响应体写入 dest；任何一步失败返回 Err。
+pub fn http_get(url: &str, dest: &str, timeout_secs: u64) -> Result<(), String> {
+    use std::io::{Read, Write};
+    use std::net::TcpStream;
+    use std::time::Duration;
+
+    let mut cur_url = url.to_string();
+    for _hop in 0..6 {
+        // ---- 解析 http:// URL ----
+        let rest = cur_url
+            .strip_prefix("http://")
+            .ok_or_else(|| format!("http_get 仅支持 http://: {cur_url}"))?;
+        let (hostport, path) = match rest.find('/') {
+            Some(i) => (&rest[..i], &rest[i..]),
+            None => (rest, "/"),
+        };
+        let (host, port) = match hostport.find(':') {
+            Some(i) => (&hostport[..i], hostport[i + 1..].parse::<u16>().unwrap_or(80)),
+            None => (hostport, 80u16),
+        };
+        if host.is_empty() {
+            return Err(format!("URL 缺少主机名: {cur_url}"));
+        }
+
+        let mut stream = TcpStream::connect((host, port))
+            .map_err(|e| format!("连接 {host}:{port} 失败: {e}"))?;
+        let _ = stream.set_read_timeout(Some(Duration::from_secs(timeout_secs)));
+        let _ = stream.set_write_timeout(Some(Duration::from_secs(timeout_secs)));
+
+        let req = format!(
+            "GET {path} HTTP/1.1\r\nHost: {host}\r\nUser-Agent: libman/1.0\r\nAccept: */*\r\nConnection: close\r\n\r\n"
+        );
+        stream
+            .write_all(req.as_bytes())
+            .map_err(|e| format!("发送请求失败: {e}"))?;
+
+        // ---- 读响应头（把可能多读的 body 首字节一并保留在 overflow）----
+        let mut raw = Vec::new();
+        let mut buf = [0u8; 4096];
+        let mut head_end = None;
+        while head_end.is_none() {
+            let n = stream
+                .read(&mut buf)
+                .map_err(|e| format!("读取响应头失败: {e}"))?;
+            if n == 0 {
+                break;
+            }
+            raw.extend_from_slice(&buf[..n]);
+            head_end = find_crlfcrlf(&raw);
+            if raw.len() > 1 << 16 {
+                return Err("响应头过大".to_string());
+            }
+        }
+        let head_end = head_end.ok_or("响应头不完整")?;
+        let head_str = String::from_utf8_lossy(&raw[..head_end]).to_string();
+
+        let mut code = 0u16;
+        let mut location = String::new();
+        let mut chunked = false;
+        let mut content_length: Option<u64> = None;
+        for (i, line) in head_str.lines().enumerate() {
+            let l = line.trim();
+            if i == 0 {
+                if let Some(c) = l.split_whitespace().nth(1) {
+                    code = c.parse().unwrap_or(0);
+                }
+            } else if let Some(v) = l.strip_prefix("Location:") {
+                location = v.trim().to_string();
+            } else if l.eq_ignore_ascii_case("Transfer-Encoding: chunked") {
+                chunked = true;
+            } else if let Some(v) = l.strip_prefix("Content-Length:") {
+                content_length = v.trim().parse().ok();
+            }
+        }
+        let overflow = raw[head_end..].to_vec();
+
+        // ---- 重定向处理 ----
+        if (300..400).contains(&code) {
+            if location.starts_with("http://") {
+                cur_url = location;
+                continue;
+            }
+            return Err(format!("服务端 {code} 重定向到不支持的目标: {location}"));
+        }
+        if code != 200 {
+            return Err(format!("HTTP 状态 {code}"));
+        }
+
+        // ---- 写出响应体 ----
+        let mut out = std::fs::File::create(dest).map_err(|e| e.to_string())?;
+        let mut total: u64 = 0; // 已写出字节数
+        let mut cursor = 0usize; // overflow 内已消费的字节数
+        // 逐字节读取器：先消费 overflow，再读网络流
+        let read_byte = |s: &mut TcpStream,
+                         over: &[u8],
+                         i: &mut usize|
+         -> Result<Option<u8>, String> {
+            if *i < over.len() {
+                let b = over[*i];
+                *i += 1;
+                Ok(Some(b))
+            } else {
+                let mut b = [0u8; 1];
+                let n = s.read(&mut b).map_err(|e| format!("读取响应体失败: {e}"))?;
+                if n == 0 {
+                    Ok(None)
+                } else {
+                    Ok(Some(b[0]))
+                }
+            }
+        };
+
+        if chunked {
+            loop {
+                // 读取 chunk 大小行（到 \r\n 为止）
+                let mut sizeline = Vec::new();
+                loop {
+                    match read_byte(&mut stream, &overflow, &mut cursor)? {
+                        Some(b) => {
+                            sizeline.push(b);
+                            if sizeline.len() >= 2 && sizeline.ends_with(b"\r\n") {
+                                break;
+                            }
+                            if sizeline.len() > 64 {
+                                return Err("chunk 大小行异常".to_string());
+                            }
+                        }
+                        None => return Err("chunk 读取中断".to_string()),
+                    }
+                }
+                let line = String::from_utf8_lossy(&sizeline[..sizeline.len() - 2]).to_string();
+                let hexpart = line.split(';').next().unwrap_or("").trim();
+                let size = usize::from_str_radix(hexpart, 16)
+                    .map_err(|_| format!("chunk 大小解析失败: {line}"))?;
+                if size == 0 {
+                    let _ = read_byte(&mut stream, &overflow, &mut cursor);
+                    let _ = read_byte(&mut stream, &overflow, &mut cursor);
+                    break;
+                }
+                for _ in 0..size {
+                    match read_byte(&mut stream, &overflow, &mut cursor)? {
+                        Some(b) => {
+                            out.write_all(&[b]).map_err(|e| e.to_string())?;
+                        }
+                        None => return Err("chunk 数据中断".to_string()),
+                    }
+                }
+                let _ = read_byte(&mut stream, &overflow, &mut cursor);
+                let _ = read_byte(&mut stream, &overflow, &mut cursor);
+            }
+        } else if let Some(len) = content_length {
+            // 先写出 overflow 里已有的 body
+            let have = overflow.len() - cursor;
+            let want = ((len - total) as usize).min(have);
+            if want > 0 {
+                out.write_all(&overflow[cursor..cursor + want])
+                    .map_err(|e| e.to_string())?;
+                total += want as u64;
+            }
+            let mut buf = [0u8; 65536];
+            while total < len {
+                let n = stream
+                    .read(&mut buf)
+                    .map_err(|e| format!("读取响应体失败: {e}"))?;
+                if n == 0 {
+                    break;
+                }
+                let take = ((len - total) as usize).min(n);
+                out.write_all(&buf[..take]).map_err(|e| e.to_string())?;
+                total += take as u64;
+                if take < n {
+                    break;
+                }
+            }
+        } else {
+            // 无 Content-Length：读至连接关闭
+            if cursor < overflow.len() {
+                out.write_all(&overflow[cursor..]).map_err(|e| e.to_string())?;
+                total += (overflow.len() - cursor) as u64;
+            }
+            let mut buf = [0u8; 65536];
+            loop {
+                let n = stream
+                    .read(&mut buf)
+                    .map_err(|e| format!("读取响应体失败: {e}"))?;
+                if n == 0 {
+                    break;
+                }
+                out.write_all(&buf[..n]).map_err(|e| e.to_string())?;
+                total += n as u64;
+            }
+        }
+        drop(out);
+        if total == 0 {
+            let _ = std::fs::remove_file(dest);
+            return Err("下载内容为空".to_string());
+        }
+        return Ok(());
+    }
+    Err("重定向次数过多".to_string())
 }
 
 /// xz 解压
