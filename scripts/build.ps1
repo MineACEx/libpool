@@ -86,9 +86,10 @@ $ZIP = Join-Path $ROOT "dist\libpool-$VER.zip"
 New-Item -ItemType Directory -Path (Join-Path $ROOT "dist") -Force | Out-Null
 if (Test-Path $ZIP) { Remove-Item $ZIP -Force }
 
-# 用 .NET 的 ZipFile 打包（确保 libman 二进制保留可执行语义由刷机工具处理）
-Add-Type -AssemblyName System.IO.Compression.FileSystem
-[System.IO.Compression.ZipFile]::CreateFromDirectory($MODULE_DIR, $ZIP)
+# 用 pack.py 打包：条目路径一律正斜杠，杜绝 Windows .NET ZipFile 产出反斜杠条目
+# （反斜杠条目会让设备端 unzip 解出 webroot\style.css 这类字面文件名，损坏模块结构）
+python (Join-Path $PSScriptRoot "pack.py") $MODULE_DIR $ZIP
+if ($LASTEXITCODE -ne 0) { throw "打包失败（需要 python）" }
 
 Write-Host "==> [4/4] 完成: $ZIP" -ForegroundColor Green
 Write-Host "    模块目录: $MODULE_DIR"
