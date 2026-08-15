@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="webroot/icons/icon.png" width="112" height="112" alt="LibPool · 库池" />
+  <img src="https://cdn.jsdelivr.net/gh/MineACEx/libpool@master/webroot/icons/icon.png" width="112" height="112" alt="LibPool · 库池" />
 </p>
 
 <h1 align="center">LibPool · 库池</h1>
