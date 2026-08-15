@@ -20,10 +20,31 @@ body:
     id: device
     attributes:
       label: 设备与系统 / Device & system
-      description: 机型、安卓版本、Root 方案（Magisk / KernelSU / APatch）及版本
-      placeholder: e.g. Pixel 8 · Android 15 · KernelSU 1.0.0
+      description: 机型、安卓版本
+      placeholder: e.g. Pixel 8 · Android 15
     validations:
       required: true
+  - type: dropdown
+    id: root
+    attributes:
+      label: Root 方案 / Root solution
+      description: 你使用的 Root 工具及版本
+      options:
+        - KernelSU
+        - Magisk
+        - APatch
+        - 其它 / Other
+    validations:
+      required: true
+  - type: dropdown
+    id: install
+    attributes:
+      label: 安装情况 / Installation
+      options:
+        - 全新安装 / Fresh install
+        - 从旧版本升级 / Upgraded from an older version
+        - 刚更新模块后出现 / Appeared right after updating the module
+      default: 0
   - type: input
     id: arch
     attributes:

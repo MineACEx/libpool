@@ -31,17 +31,16 @@ const state = {
   activeChild: null,      // 当前活跃的 spawn child
 };
 
-/* 公告纯文本网址（用户稍后提供，网站无标签、纯文本）。
-   留空则不启用公告。填上 https 地址后每天最多弹一次。 */
-const ANNOUNCEMENT_URL = "./announce.md";   /* 临时测试 */
+/* 公告网址（指向本仓库 announce.md，内容为 Markdown，每天最多弹一次）。
+   留空则不启用公告。设备上优先读模块 .git/url.txt（用户可手动覆盖）。 */
+const ANNOUNCEMENT_URL = "https://raw.githubusercontent.com/MineACEx/libpool/master/announce.md";
 
 /* 云更新配置（与公告同机制：可读模块 .git/update.txt、.git/download.txt，否则回退内置常量）。
    UPDATE_URL 指向纯文本版本号（如 1.1.0）；UPDATE_DOWNLOAD_URL 指向下载/更新页面。
    检测到云端版本与本地不一致时，弹窗提示并给出可点击跳转默认浏览器的下载链接。
-   DEFAULT_RELEASES_URL：未配置下载地址时的兜底更新页（GitHub 仓库创建后填入真实 Releases 地址）。 */
-const UPDATE_URL = "";
-const UPDATE_DOWNLOAD_URL = "";
-const DEFAULT_RELEASES_URL = "https://github.com/MineACEx/libpool/releases";
+   DEFAULT_RELEASES_URL：未配置下载地址时的兜底更新页。 */
+const UPDATE_URL = "https://raw.githubusercontent.com/MineACEx/libpool/master/version.txt";
+const UPDATE_DOWNLOAD_URL = "https://github.com/MineACEx/libpool/releases";
 
 /* ---------------- 模块路径与 libman 调用 ---------------- */
 let MOD = "/data/adb/modules/libpool";
