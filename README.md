@@ -45,7 +45,7 @@
 
 ## 安装
 
-1. 下载 [Releases](./releases) 里的 `libpool-<version>.zip`
+1. 下载 [Releases](./releases) 里的 `libpool-<version>.zip`（大陆用户可用 Release 页里提供的国内加速镜像链接）
 2. 打开 Magisk / KernelSU 管理器 → 模块 → 从本地安装 → 选择该 zip
 3. 重启（或打开 KernelSU 的模块 WebUI 直接开始管理）
 
