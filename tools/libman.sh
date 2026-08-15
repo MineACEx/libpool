@@ -41,6 +41,14 @@ MODDIR=${LIBPOOL_DIR:-/data/adb/modules/libpool}
 # 版本号，与 Rust 版保持一致
 VERSION="1.0.0"
 
+# 运行日志（logs/libman.log），配合 WebUI「关于 → 查看日志」排查安装/下载/挂载失败。
+# 记录每次命令调用与错误，best-effort，写失败不影响功能。
+LMAN_LOG="$MODDIR/logs/libman.log"
+mkdir -p "$MODDIR/logs" 2>/dev/null || true
+logfile() {
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] libman.sh: $*" >> "$LMAN_LOG" 2>/dev/null || true
+}
+
 # 是否开启 set -e？开启后任意命令失败都会导致脚本退出。
 # 我们在脚本内部显式使用 "命令 || true" 来处理"允许失败"的命令，
 # 避免一个失败命令导致整个脚本提前退出。
@@ -62,6 +70,7 @@ TMP_ROOT="$MODDIR/libs/.tmp"                   # 安装临时目录
 # 输出错误信息到 stderr（格式与 Rust 版一致，便于 WebUI 识别）
 err() {
     echo "libman 错误: $*" >&2
+    logfile "错误: $*"
 }
 
 # 输出日志/进度信息到 stderr（不污染 stdout 的 JSON）
@@ -1533,6 +1542,8 @@ EOF
 # -----------------------------------------------------------------------------
 CMD="$1"
 shift 2>/dev/null || true
+
+logfile "执行命令: ${CMD:-<空>} $*"
 
 case "$CMD" in
     list)         cmd_list ;;

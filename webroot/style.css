@@ -1135,6 +1135,31 @@ body {
 .announcement-content em { font-style: italic; }
 .announcement-ok { margin-top: 16px; }
 
+/* ---------- 日志查看器（关于 → 查看日志） ---------- */
+.log-card { max-height: 82vh; }
+.log-view {
+  flex: 1;
+  margin: 0;
+  padding: 12px;
+  overflow: auto;
+  font-family: ui-monospace, "SF Mono", "Cascadia Mono", monospace;
+  font-size: 11.5px;
+  line-height: 1.6;
+  color: var(--text-primary);
+  background: color-mix(in srgb, var(--bg-elevated) 55%, transparent);
+  border: 1px solid var(--card-border-fine);
+  border-radius: var(--r-sm);
+  white-space: pre-wrap;
+  word-break: break-all;
+  -webkit-overflow-scrolling: touch;
+}
+.log-actions { display: flex; gap: 10px; margin-top: 14px; }
+#btnLogClose {
+  background: var(--card-bg);
+  border: 1px solid var(--hairline);
+  color: var(--text-secondary);
+}
+
 /* ---------- toast（亮暗双色 + 通透毛玻璃 + G2 圆角） ----------
    进出场统一由 .visible 类 + 过渡驱动：进场上浮淡入、退场滑落淡出，
    先快后慢曲线，连续 toast 会被新请求打断（旧过渡平滑收尾）。 */

@@ -273,6 +273,8 @@
           <div class="about-row"><span>开源许可</span><span>Apache-2.0</span></div>
           <p class="about-note">LibPool 用轻量原生工具（Rust 编译）管理库，挂载后无需常驻进程，几乎不耗电。32 位设备自动使用兼容二进制或脚本兜底。</p>
         </div>
+        <button class="btn-primary ripple-host" id="btnLogView" style="margin-top:12px">查看日志</button>
+        <button class="btn-ghost ripple-host" id="btnShowAnnouncement" style="margin-top:8px;width:100%">重新显示欢迎公告</button>
 
         <div class="danger-zone">
           <button class="btn-danger" id="btnReset">全部卸载并重置</button>
@@ -293,6 +295,22 @@
       </div>
       <div class="announcement-content" id="announcementContent"></div>
       <button class="btn-primary announcement-ok ripple-host" id="okAnnouncement">我知道了</button>
+    </div>
+  </div>
+
+  <!-- 日志查看弹窗（安装/开机/WebUI 运行日志，方便排查问题） -->
+  <div class="announcement" id="logModal" hidden role="dialog" aria-modal="true" aria-labelledby="logModalTitle">
+    <div class="announcement-backdrop"></div>
+    <div class="glass-card announcement-card log-card">
+      <div class="announcement-head">
+        <div class="announcement-title" id="logModalTitle">模块日志</div>
+        <span class="announcement-badge">诊断</span>
+      </div>
+      <pre class="log-view" id="logView"></pre>
+      <div class="log-actions">
+        <button class="btn-primary announcement-ok ripple-host" id="btnLogCopy">复制</button>
+        <button class="btn-ghost announcement-ok ripple-host" id="btnLogClose">关闭</button>
+      </div>
     </div>
   </div>
 

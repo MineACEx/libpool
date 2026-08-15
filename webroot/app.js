@@ -57,6 +57,7 @@ async function detectEnvironment() {
       console.warn("非 KernelSU 环境，进入预览模式");
       return;
     }
+    await normalizeModule(); // 自愈：规整旧包遗留的反斜杠文件名（见下）
     // 检测原生二进制是否存在
     const r = await exec(`test -x ${MOD}/tools/libman && echo yes`);
     useNative = /yes/.test(r.stdout || "");
@@ -70,6 +71,23 @@ async function detectEnvironment() {
     state.inPreview = true;
     console.warn("非 KernelSU 环境，进入预览模式", e);
   }
+}
+
+/** 自愈：早期坏包（Windows .NET ZipFile 打包）可能留下 webroot\style.css 这类
+    带反斜杠字面文件名的文件，导致 tools/libman.sh 等路径检测不到、提示"管理工具未就绪"。
+    每次启动只读扫描一次，发现才规整为正斜杠并重新探测工具，无需重装模块。 */
+async function normalizeModule() {
+  if (state.inPreview || !MOD) return;
+  try {
+    const scan = await exec(`find ${MOD} -name '*\\\\*' 2>/dev/null`);
+    const bad = (scan.stdout || "").split(/\r?\n/).filter(Boolean);
+    if (!bad.length) return;
+    logWebui(`检测到 ${bad.length} 个反斜杠文件名（旧包遗留），正在规整…`);
+    await exec(`find ${MOD} -name '*\\\\*' 2>/dev/null | while IFS= read -r f; do g=$(printf '%s' "$f" | tr '\\\\' '/'); mkdir -p "\${g%/*}" 2>/dev/null; mv -f "$f" "$g" 2>/dev/null; done`);
+    const r = await exec(`test -x ${MOD}/tools/libman && echo yes`);
+    useNative = /yes/.test(r.stdout || "");
+    logWebui("反斜杠文件已规整，已重新探测管理工具");
+  } catch (e) { /* 自愈失败不阻断启动 */ }
 }
 
 /** 构造 libman 命令（shell 前缀） */
@@ -295,12 +313,14 @@ function storeCardHTML(r, i, animate = true) {
 /* ---------------- 操作 ---------------- */
 async function toggleLib(id) {
   if (state.inPreview) { showToast("预览模式下不执行操作"); return; }
+  logWebui(`toggle: ${id}`);
   try {
     const r = await exec(libmanCmd(`toggle ${id}`));
     if (r.errno !== 0) throw new Error((r.stderr || "操作失败").trim());
     showToast((r.stdout || "已切换").trim());
     await refresh();
   } catch (e) {
+    logWebui(`toggle 失败: ${id} ${e.message}`);
     showToast("操作失败：" + e.message, true);
     console.error(e);
   }
@@ -309,15 +329,23 @@ async function toggleLib(id) {
 async function installLib(id) {
   if (state.inPreview) { showToast("预览模式下不执行操作"); return; }
   const lib = state.repos.find((r) => r.id === id);
-  // 预检：确认管理工具就绪，避免"点下载秒弹又秒关"的困惑。
-  // 模块刚安装未重启 / 二进制缺失时，直接给出明确提示而不是闪一下失败弹窗。
+  // 预检：确认管理工具就绪，并记录真实原因到日志（避免"秒弹又秒关"的困惑）。
   try {
-    const probe = await exec(`test -x ${MOD}/tools/libman && echo native || test -x ${MOD}/tools/libman.sh && echo shell`);
-    if (!/(native|shell)/.test(probe.stdout || "")) {
-      showToast("管理工具未就绪，请重启一次手机或重装模块", true);
+    const probe = await exec(
+      `ls -l ${MOD}/tools/ 2>&1; echo ---; ` +
+      `test -x ${MOD}/tools/libman && echo TOOL_NATIVE || echo TOOL_NO_NATIVE; ` +
+      `test -x ${MOD}/tools/libman.sh && echo TOOL_SHELL || echo TOOL_NO_SHELL`
+    );
+    logWebui(`工具预检(${id}):\n${probe.stdout || ""}`);
+    if (!/TOOL_NATIVE|TOOL_SHELL/.test(probe.stdout || "")) {
+      // 写诊断日志并提示用户去查看（置顶有架构/tools 权限/可执行性，直接说明原因）
+      const diag = await runDiagnostics();
+      logWebui(`工具未就绪，诊断：\n${diag}`);
+      showToast("管理工具未就绪，请到「设置 → 查看日志」看原因", true);
       return;
     }
   } catch (e) { /* 预检失败不阻断，由下方正式执行兜底 */ }
+  logWebui(`开始下载: ${id}`);
   state.cancelRequested = false;
   showOverlay(`正在下载 ${lib ? lib.name : id}`, "请保持页面打开…");
   try {
@@ -328,11 +356,13 @@ async function installLib(id) {
     });
     if (state.cancelRequested) return; // 用户已取消
     hideOverlay();
+    logWebui(`下载完成: ${id}`);
     showToast("下载完成");
     await refresh();
     pulseCard(id); // 安装成功：对应卡片脉冲光晕（纯视觉）
   } catch (e) {
     hideOverlay();
+    logWebui(`下载失败: ${id} ${e.message}`);
     if (!state.cancelRequested) showToast("下载失败：" + e.message, true);
     console.error(e);
   }
@@ -349,12 +379,14 @@ async function cancelDownload() {
 
 async function removeLib(id) {
   if (state.inPreview) { showToast("预览模式下不执行操作"); return; }
+  logWebui(`remove: ${id}`);
   try {
     const r = await exec(libmanCmd(`remove ${id}`));
     if (r.errno !== 0) throw new Error((r.stderr || "删除失败").trim());
     showToast((r.stdout || "已删除").trim());
     await refresh();
   } catch (e) {
+    logWebui(`remove 失败: ${id} ${e.message}`);
     showToast("删除失败：" + e.message, true);
   }
 }
@@ -731,41 +763,77 @@ function clearBg() {
   $("bgInput").value = "";
 }
 
-/* ---------------- 公告（拉取纯文本站点） ---------------- */
-/** 解析公告网址：优先读模块 .git/url.txt（用户可手动填写），否则回退内置常量。 */
-async function resolveAnnounceUrl() {
+/* ---------------- 公告（拉取纯文本站点，每天最多一次） ----------------
+   网址优先级：模块 .git/url.txt（用户可手动填写）> 内置 ANNOUNCEMENT_URL。
+   候选地址逐个尝试、全部失败才跳过；"每天一次"按本地日期判断（修正了 UTC 偏移）。
+   公告与云更新共用同一个毛玻璃弹窗：公告先展示，用户关闭后再做云更新检查，
+   避免更新弹窗把欢迎公告顶掉（此前"公告不显示"的根因之一）。 */
+
+function localDateKey() {
+  const d = new Date();
+  const p = (n) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+}
+
+/** 按优先级依次尝试候选公告网址，成功返回 {url, text}，全部失败返回 null。 */
+async function fetchAnnouncementText() {
+  const candidates = [];
   if (!state.inPreview && MOD) {
     try {
       const r = await exec(`cat ${MOD}/.git/url.txt 2>/dev/null`);
-      const txt = r.stdout || "";
-      const line = txt.split(/\r?\n/).find((l) => /^https?:\/\/\S+$/.test(l.trim()));
-      if (line) return line.trim();
+      const line = (r.stdout || "").split(/\r?\n/).find((l) => /^https?:\/\/\S+$/.test(l.trim()));
+      if (line) candidates.push(line.trim());
     } catch (e) { /* ignore */ }
   }
-  return (ANNOUNCEMENT_URL || "").trim();
+  if (ANNOUNCEMENT_URL) candidates.push(ANNOUNCEMENT_URL.trim());
+  const seen = new Set();
+  for (const url of candidates) {
+    if (seen.has(url)) continue;
+    seen.add(url);
+    try {
+      const res = await fetch(url, { cache: "no-store" });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const text = (await res.text()).trim();
+      if (text) return { url, text };
+    } catch (e) {
+      logWebui(`公告拉取失败(${url}): ${e.message}`);
+      console.warn("公告拉取失败，跳过", url, e);
+    }
+  }
+  return null;
 }
 
+/** 把富文本写入公告弹窗（标题 / 徽标 / Markdown 内容）。 */
+function renderAnnouncement(title, badge, md) {
+  $("announcementTitleText").textContent = title;
+  const b = $("announcementBadge");
+  if (b) b.textContent = badge;
+  $("announcementContent").innerHTML = renderMarkdown(md);
+}
+
+/** 每天最多弹一次的欢迎公告。返回是否已展示（供云更新排队判断）。 */
 async function loadAnnouncement() {
-  if (!$("announcement").hidden) return; // 云更新弹窗已显示时，不再覆盖成普通公告
-  const url = await resolveAnnounceUrl();
-  if (!url) return; // 未配置公告地址
-  const today = new Date().toISOString().slice(0, 10);
-  if (localStorage.getItem("libpool-announce-date") === today) return; // 每天最多弹一次
-  try {
-    const res = await fetch(url, { cache: "no-store" });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const text = (await res.text()).trim();
-    if (!text) return;
-    // 重置为普通公告样式（标题/徽标可能在云更新弹窗时被改过）
-    $("announcementTitleText").textContent = "公告";
-    const badge = $("announcementBadge");
-    if (badge) badge.textContent = "最新";
-    $("announcementContent").innerHTML = renderMarkdown(text);   // 支持 Markdown 富文本
-    openAnnouncement();
-    localStorage.setItem("libpool-announce-date", today);
-  } catch (e) {
-    console.warn("公告拉取失败，跳过", e);
+  const today = localDateKey();
+  if (localStorage.getItem("libpool-announce-date") === today) return false; // 今天已看过
+  const hit = await fetchAnnouncementText();
+  if (!hit) return false; // 未配置或全部候选拉取失败
+  renderAnnouncement("公告", "最新", hit.text);
+  openAnnouncement();
+  localStorage.setItem("libpool-announce-date", today);
+  logWebui(`欢迎公告已展示: ${hit.url}`);
+  return true;
+}
+
+/** 手动重新展示公告（关于页按钮，绕过"每天一次"限制，方便验证）。 */
+async function showAnnouncementNow() {
+  const hit = await fetchAnnouncementText();
+  if (!hit) {
+    showToast("公告拉取失败，请检查网络或 .git/url.txt", true);
+    return;
   }
+  renderAnnouncement("公告", "最新", hit.text);
+  openAnnouncement();
+  logWebui(`手动重显公告: ${hit.url}`);
 }
 
 function openAnnouncement() {
@@ -775,15 +843,30 @@ function openAnnouncement() {
   requestAnimationFrame(() => el.classList.add("open"));
 }
 
+const _announceCloseWaiters = [];
+/** 等待当前公告弹窗被用户关闭（用于让云更新检查排队在后）。 */
+function waitForAnnouncementClose() {
+  return new Promise((resolve) => _announceCloseWaiters.push(resolve));
+}
+function flushAnnouncementCloseWaiters() {
+  const ws = _announceCloseWaiters.splice(0);
+  ws.forEach((fn) => fn());
+}
+
 function closeAnnouncement() {
   const el = $("announcement");
   el.classList.remove("open");
-  setTimeout(() => { el.hidden = true; }, 520);
+  setTimeout(() => {
+    el.hidden = true;
+    flushAnnouncementCloseWaiters(); // 公告关闭后再放行云更新检查
+  }, 520);
 }
 
 function setupAnnouncementUI() {
   $("okAnnouncement").addEventListener("click", closeAnnouncement);
   document.querySelector(".announcement-backdrop").addEventListener("click", closeAnnouncement);
+  const rb = $("btnShowAnnouncement");
+  if (rb) rb.addEventListener("click", showAnnouncementNow);
   // 弹窗内链接（云更新的下载链接、Markdown 里的链接）点击 → 跳转默认浏览器，不在 WebUI 内导航
   document.querySelector(".announcement-content").addEventListener("click", (e) => {
     const a = e.target.closest("a");
@@ -865,19 +948,14 @@ async function checkUpdate() {
 
   const dl = (await resolveUpdateUrl("download.txt", UPDATE_DOWNLOAD_URL)) || "";
   const newer = compareVersions(cloudV, localV) > 0;
-  const badge = $("announcementBadge");
-  $("announcementTitleText").textContent = "发现新版本";
-  if (badge) badge.textContent = "更新";
   if (newer) {
-    const target = dl || DEFAULT_RELEASES_URL;
+    const target = dl || UPDATE_DOWNLOAD_URL;
     const label = dl ? `前往下载 v${cloudV} →` : `GitHub Releases →`;
-    $("announcementContent").innerHTML = renderMarkdown(
-      `检测到云端新版本 **v${cloudV}**（当前本地 v${localV}）。\n\n[${label}](${target})`
-    );
+    renderAnnouncement("发现新版本", "更新",
+      `检测到云端新版本 **v${cloudV}**（当前本地 v${localV}）。\n\n[${label}](${target})`);
   } else {
-    $("announcementContent").innerHTML = renderMarkdown(
-      `云端版本 v${cloudV} 与本地 v${localV} 不一致（云端较旧）。`
-    );
+    renderAnnouncement("发现新版本", "更新",
+      `云端版本 v${cloudV} 与本地 v${localV} 不一致（云端较旧）。`);
   }
   openAnnouncement();
 }
@@ -1166,6 +1244,86 @@ function setupGpu() {
   }
 }
 
+/* ---------------- 日志系统（模块自诊断） ----------------
+   日志文件：
+     install.log    安装脚本（customize.sh）
+     service.log    开机服务（service.sh）
+     logs/webui.log  WebUI 运行诊断（启动/工具预检/操作/公告）
+     logs/libman.log libman 工具运行日志（命令调用与错误）
+     logs/diagnose.log  实时运行诊断快照
+   写入用 exec 追加（best-effort，失败不影响界面）；「设置 → 查看日志」可读全部日志。
+   日志查看器置顶展示实时诊断（架构 / tools 目录权限 / 各工具是否可执行），
+   直接定位"管理工具未就绪"的根因（缺失？权限？反斜杠遗留？）。 */
+
+/** 安全地把一行文本追加到模块内的日志文件（处理单引号与换行）。 */
+async function appendToLog(file, text) {
+  if (state.inPreview || !MOD) return;
+  try {
+    const safe = String(text).replace(/'/g, "'\\''");
+    await exec(`mkdir -p ${MOD}/logs; printf '%s\n' '${safe}' >> ${MOD}/${file}`);
+  } catch (e) { /* 日志失败忽略 */ }
+}
+
+async function logWebui(msg) {
+  const t = new Date().toLocaleString("zh-CN", { hour12: false });
+  await appendToLog("logs/webui.log", `[${t}] ${msg}`);
+}
+
+/** 实时运行诊断：探测架构、tools 目录、各候选工具可执行性、libman 版本。
+    结果写入 logs/diagnose.log 并返回文本（日志查看器置顶显示）。 */
+async function runDiagnostics() {
+  if (state.inPreview || !MOD) return "（预览模式，无设备诊断）\n";
+  try {
+    const r = await exec(
+      `echo "架构: $(uname -m)"; echo; ` +
+      `echo '--- tools 目录 ---'; ls -la ${MOD}/tools 2>&1; echo; ` +
+      `echo '--- 工具可执行性 ---'; ` +
+      `test -x ${MOD}/tools/libman && echo 'libman      可执行' || echo 'libman      缺失或不可执行'; ` +
+      `test -x ${MOD}/tools/libman-arm && echo 'libman-arm  可执行' || echo 'libman-arm  缺失或不可执行'; ` +
+      `test -x ${MOD}/tools/libman.sh && echo 'libman.sh   可执行' || echo 'libman.sh   缺失或不可执行'; echo; ` +
+      `echo '--- libman 版本 ---'; ` +
+      `{ test -x ${MOD}/tools/libman && ${MOD}/tools/libman version 2>&1; } || echo 'libman 无法运行'`
+    );
+    const diag = `===== 运行诊断 =====\n${(r.stdout || "").trim()}\n\n`;
+    await appendToLog("logs/diagnose.log", diag);
+    return diag;
+  } catch (e) {
+    return "";
+  }
+}
+
+async function openLogViewer() {
+  const files = ["install.log", "service.log", "logs/webui.log", "logs/libman.log", "logs/diagnose.log"];
+  let out = await runDiagnostics(); // 置顶实时诊断，一眼定位工具未就绪原因
+  for (const f of files) {
+    try {
+      const r = await exec(`cat ${MOD}/${f} 2>/dev/null`);
+      const content = (r.stdout || "").replace(/\s+$/, "");
+      if (content) out += `===== ${f} =====\n${content}\n\n`;
+    } catch (e) { /* ignore */ }
+  }
+  $("logView").textContent = out.trim() || "暂无日志，请先安装/重启模块生成。";
+  const el = $("logModal");
+  el.hidden = false;
+  requestAnimationFrame(() => el.classList.add("open"));
+}
+function closeLogViewer() {
+  const el = $("logModal");
+  el.classList.remove("open");
+  setTimeout(() => { el.hidden = true; }, 320);
+}
+function setupLogUI() {
+  $("btnLogView").addEventListener("click", openLogViewer);
+  $("btnLogClose").addEventListener("click", closeLogViewer);
+  $("btnLogCopy").addEventListener("click", async () => {
+    const text = $("logView").textContent;
+    try { await navigator.clipboard.writeText(text); showToast("日志已复制"); }
+    catch (e) { showToast("复制失败，请手动长按选择"); }
+  });
+  // 点击背景关闭
+  document.querySelector("#logModal .announcement-backdrop").addEventListener("click", closeLogViewer);
+}
+
 /* ---------------- 启动 ---------------- */
 (async function init() {
   try { enableEdgeToEdge(true); } catch (e) { /* noop */ }
@@ -1186,10 +1344,12 @@ function setupGpu() {
   setupBg();
   setupWallBlur();
   setupAnnouncementUI();
+  setupLogUI();
   $("btnRefresh").addEventListener("click", refresh);
   $("btnCancelDownload").addEventListener("click", cancelDownload);
 
   await detectEnvironment();
+  logWebui(`启动：模块=${MOD} 预览=${state.inPreview} 原生工具=${useNative}`);
   await loadRepos();
   await loadLibs();
   await loadMirror();
@@ -1211,7 +1371,12 @@ function setupGpu() {
     } catch (e) { /* ignore */ }
   }
 
-  // 云更新检查优先（延迟拉取，不阻塞首屏）；若已弹更新提示，普通公告自动跳过
-  await checkUpdate();
-  loadAnnouncement();
+  // 欢迎公告优先展示（每天一次）；用户关闭后放行云更新检查，
+  // 避免更新弹窗把欢迎公告顶掉（此前"公告不显示"的根因之一）
+  const annShown = await loadAnnouncement();
+  if (annShown) {
+    waitForAnnouncementClose().then(() => checkUpdate());
+  } else {
+    checkUpdate();
+  }
 })();
