@@ -30,6 +30,12 @@ case "$(uname -m)" in
   armv7l|armv7|armhf|arm) ARCH_BIN="libman-arm" ;;
   *) ARCH_BIN="" ;;
 esac
+
+# 防御：zip 由 Windows 打包不带 +x 位，解压后 tools/* 是 644，
+# 开机时强制补上，否则 test -x 找不到工具、挂载全跳过。
+chmod 755 "$MODDIR/tools" 2>/dev/null
+for c in "$MODDIR/tools"/*; do chmod 755 "$c" 2>/dev/null; done
+
 BIN=""
 for cand in "$MODDIR/tools/$ARCH_BIN" "$MODDIR/tools/libman" "$MODDIR/tools/libman.sh"; do
   if [ -f "$cand" ] && [ -x "$cand" ]; then

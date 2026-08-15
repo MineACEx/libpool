@@ -69,9 +69,13 @@ fi
 chmod 755 "$MODDIR/webroot" 2>/dev/null
 chmod 755 "$MODDIR" 2>/dev/null
 
-# 设置可执行权限
-chmod 755 "$MODDIR/tools"/* 2>/dev/null
+# 设置可执行权限（zip 由 Windows 打包时通常不带 Unix +x 位，管理器解压后 tools/* 全是 644，
+# 必须在这里强制补上，否则 test -x 会把 libman 误判成"管理工具未就绪"）
+log "设置 tools 可执行权限…"
+chmod 755 "$MODDIR/tools" 2>/dev/null
+for c in "$MODDIR/tools"/*; do chmod 755 "$c" 2>/dev/null; done
 chmod 755 "$MODDIR/libs" 2>/dev/null
+log "tools 权限: $(ls -l "$MODDIR/tools" 2>/dev/null | tail -n +2 | awk '{print $1, $9}' | tr '\n' ' ')"
 
 # 选择可用的管理工具（原生 > arm 原生 > shell 兜底）
 BIN=""

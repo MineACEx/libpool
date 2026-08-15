@@ -58,15 +58,7 @@ async function detectEnvironment() {
       return;
     }
     await normalizeModule(); // 自愈：规整旧包遗留的反斜杠文件名（见下）
-    // 检测原生二进制是否存在
-    const r = await exec(`test -x ${MOD}/tools/libman && echo yes`);
-    useNative = /yes/.test(r.stdout || "");
-    if (!useNative) {
-      const s = await exec(`test -x ${MOD}/tools/libman.sh && echo yes`);
-      if (/yes/.test(s.stdout || "")) {
-        console.warn("libman 二进制缺失，回退到 shell 脚本（性能略低，建议重新编译安装）");
-      }
-    }
+    await ensureToolsExec(); // 自愈：强制补 tools +x 权限并重测（见下）
   } catch (e) {
     state.inPreview = true;
     console.warn("非 KernelSU 环境，进入预览模式", e);
@@ -87,6 +79,25 @@ async function normalizeModule() {
     const r = await exec(`test -x ${MOD}/tools/libman && echo yes`);
     useNative = /yes/.test(r.stdout || "");
     logWebui("反斜杠文件已规整，已重新探测管理工具");
+  } catch (e) { /* 自愈失败不阻断启动 */ }
+}
+
+/** 自愈：确保管理工具可执行。
+    zip 由 Windows 打包时通常不带 Unix +x 位，管理器解压后 tools/* 全是 644，
+    test -x 会把 libman 误判成"管理工具未就绪"（服务/预检/诊断三处都报不可执行，
+    但用 sh 直接跑其实正常）。WebUI 的 exec 以 root 运行，这里先强制 chmod 755 再重测，
+    打开页面即修复，无需重装/重启。 */
+async function ensureToolsExec() {
+  if (state.inPreview || !MOD) return;
+  try {
+    await exec(`chmod 755 ${MOD}/tools 2>/dev/null; chmod 755 ${MOD}/tools/* 2>/dev/null`);
+    const r = await exec(`test -x ${MOD}/tools/libman && echo native || test -x ${MOD}/tools/libman.sh && echo shell`);
+    const m = /(native|shell)/.exec(r.stdout || "");
+    if (m) {
+      const nowNative = m[1] === "native";
+      if (nowNative !== useNative) logWebui(`工具就绪: ${m[1]}（已补 +x 权限）`);
+      useNative = nowNative;
+    }
   } catch (e) { /* 自愈失败不阻断启动 */ }
 }
 
@@ -332,17 +343,25 @@ async function installLib(id) {
   // 预检：确认管理工具就绪，并记录真实原因到日志（避免"秒弹又秒关"的困惑）。
   try {
     const probe = await exec(
+      `chmod 755 ${MOD}/tools 2>/dev/null; chmod 755 ${MOD}/tools/* 2>/dev/null; ` +
       `ls -l ${MOD}/tools/ 2>&1; echo ---; ` +
       `test -x ${MOD}/tools/libman && echo TOOL_NATIVE || echo TOOL_NO_NATIVE; ` +
       `test -x ${MOD}/tools/libman.sh && echo TOOL_SHELL || echo TOOL_NO_SHELL`
     );
     logWebui(`工具预检(${id}):\n${probe.stdout || ""}`);
     if (!/TOOL_NATIVE|TOOL_SHELL/.test(probe.stdout || "")) {
-      // 写诊断日志并提示用户去查看（置顶有架构/tools 权限/可执行性，直接说明原因）
-      const diag = await runDiagnostics();
-      logWebui(`工具未就绪，诊断：\n${diag}`);
-      showToast("管理工具未就绪，请到「设置 → 查看日志」看原因", true);
-      return;
+      // 最后一层兜底：即使 +x 位拿不到，只要 sh 能跑 shell 版就继续（sh 不要求 +x）
+      const v = await exec(`sh ${MOD}/tools/libman.sh version 2>&1`);
+      if (/libman/.test(v.stdout || "")) {
+        useNative = false;
+        logWebui("libman.sh 无 +x 位但可经 sh 运行，已改用 shell 兜底继续");
+      } else {
+        // 写诊断日志并提示用户去查看（置顶有架构/tools 权限/可执行性，直接说明原因）
+        const diag = await runDiagnostics();
+        logWebui(`工具未就绪，诊断：\n${diag}`);
+        showToast("管理工具未就绪，请到「设置 → 查看日志」看原因", true);
+        return;
+      }
     }
   } catch (e) { /* 预检失败不阻断，由下方正式执行兜底 */ }
   logWebui(`开始下载: ${id}`);
@@ -1275,6 +1294,7 @@ async function runDiagnostics() {
   if (state.inPreview || !MOD) return "（预览模式，无设备诊断）\n";
   try {
     const r = await exec(
+      `chmod 755 ${MOD}/tools 2>/dev/null; chmod 755 ${MOD}/tools/* 2>/dev/null; ` +  // 打开日志即顺带修复 +x
       `echo "架构: $(uname -m)"; echo; ` +
       `echo '--- tools 目录 ---'; ls -la ${MOD}/tools 2>&1; echo; ` +
       `echo '--- 工具可执行性 ---'; ` +
