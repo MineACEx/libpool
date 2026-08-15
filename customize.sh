@@ -13,6 +13,15 @@
 MODDIR=${0%/*}
 export LIBPOOL_DIR="$MODDIR"
 
+# 防御：个别 Windows 打包器（如 .NET ZipFile）可能把 zip 条目写成反斜杠，
+# 设备端 unzip 会解出 webroot\style.css 这类带反斜杠字面名的文件，损坏模块结构。
+# 这里在安装时把所有反斜杠命名的目录/文件规整成标准正斜杠路径（无则零开销）。
+find "$MODDIR" -name '*\\*' 2>/dev/null | while IFS= read -r bad; do
+  good=$(printf '%s' "$bad" | tr '\\' '/')
+  mkdir -p "${good%/*}" 2>/dev/null
+  mv -f "$bad" "$good" 2>/dev/null
+done
+
 # 检测设备架构：aarch64/arm64 用原生二进制，其余（armv7/x86/x86_64）用 arm 二进制或 shell 兜底
 case "$(uname -m)" in
   aarch64|arm64) ARCH_BIN="libman" ;;
