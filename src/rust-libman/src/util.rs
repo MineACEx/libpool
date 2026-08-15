@@ -1,10 +1,50 @@
-//! 工具函数：执行命令、下载、配置读写、xz 解压等
+//! 工具函数：执行命令、下载、配置读写、xz 解压、文件日志等
 //! Copyright (C) 2026 MINO · Himer (MineACE)
 //! SPDX-License-Identifier: Apache-2.0
 use std::io::Read;
 use std::process::{Command, Stdio};
 
 use crate::json::{self, Json};
+
+/// 把一行追加到模块日志 logs/libman.log（best-effort，写失败不影响功能）。
+/// 与 libman.sh 共用同一个日志文件，WebUI「设置 → 查看日志」可读。
+pub fn log_file(dir: &str, msg: &str) {
+    let path = format!("{dir}/logs/libman.log");
+    if let Some(parent) = std::path::Path::new(&path).parent() {
+        let _ = std::fs::create_dir_all(parent);
+    }
+    use std::io::Write;
+    if let Ok(mut f) = std::fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(&path)
+    {
+        let _ = writeln!(f, "[{}] libman: {}", utc_now_str(), msg);
+    }
+}
+
+/// UTC 时间戳字符串（YYYY-MM-DD HH:MM:SS），纯手工换算，零依赖。
+fn utc_now_str() -> String {
+    let secs = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_secs() as i64)
+        .unwrap_or(0);
+    let days = secs.div_euclid(86400);
+    let rem = secs.rem_euclid(86400);
+    let (hh, mm, ss) = (rem / 3600, (rem % 3600) / 60, rem % 60);
+    // 天数 -> 公历（Howard Hinnant 算法）
+    let z = days + 719468;
+    let era = z.div_euclid(146097);
+    let doe = z.rem_euclid(146097);
+    let yoe = (doe - doe / 1460 + doe / 36524 - doe / 146096) / 365;
+    let y = yoe + era * 400;
+    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
+    let mp = (5 * doy + 2) / 153;
+    let d = doy - (153 * mp + 2) / 5 + 1;
+    let mo = if mp < 10 { mp + 3 } else { mp - 9 };
+    let y = if mo <= 2 { y + 1 } else { y };
+    format!("{:04}-{:02}-{:02} {:02}:{:02}:{:02}", y, mo, d, hh, mm, ss)
+}
 
 pub struct Config {
     pub mirror: String,

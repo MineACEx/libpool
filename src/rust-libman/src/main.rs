@@ -49,6 +49,7 @@ fn main() -> ExitCode {
         eprint!("{}", usage());
         return ExitCode::from(1);
     }
+    util::log_file(&dir, &format!("执行命令: {}", args.join(" ")));
 
     let result = match args[0].as_str() {
         "list" => repo::cmd_list(&dir),
@@ -108,8 +109,12 @@ fn main() -> ExitCode {
     };
 
     match result {
-        Ok(()) => ExitCode::SUCCESS,
+        Ok(()) => {
+            util::log_file(&dir, &format!("命令完成: {}", args[0]));
+            ExitCode::SUCCESS
+        }
         Err(e) => {
+            util::log_file(&dir, &format!("命令失败: {} -> {e}", args[0]));
             // 输出对 WebUI 友好的 JSON 错误（若以 --json 前缀则含 JSON 标记）
             eprintln!("libman 错误: {e}");
             ExitCode::from(1)

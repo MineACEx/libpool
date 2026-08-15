@@ -170,10 +170,22 @@ pub fn get_meta(dir: &str, id: &str) -> Result<InstalledMeta, String> {
 pub fn install_lib(dir: &str, entry: &RepoEntry, verbose: bool) -> Result<(), String> {
     let lib_root = format!("{dir}/libs/{}", entry.id);
     if is_installed(dir, &entry.id) {
-        if verbose {
-            println!("已安装过: {}，可先 remove 再重装", entry.id);
+        // 自愈：若上次只写了空壳（0 bin 0 lib），说明那次安装失败，删除重装
+        match get_meta(dir, &entry.id) {
+            Ok(m) if m.bins.is_empty() && m.libs.is_empty() => {
+                util::log_file(
+                    dir,
+                    &format!("检测到 {} 安装为空壳（无 bin/lib），删除并重装", entry.id),
+                );
+                let _ = std::fs::remove_dir_all(&lib_root);
+            }
+            _ => {
+                if verbose {
+                    println!("已安装过: {}，可先 remove 再重装", entry.id);
+                }
+                return Ok(());
+            }
         }
-        return Ok(());
     }
 
     let _ = fs::create_dir_all(&lib_root);
@@ -235,6 +247,18 @@ pub fn install_lib(dir: &str, entry: &RepoEntry, verbose: bool) -> Result<(), St
     });
     let meta_json = json::to_string_pretty(&meta_obj);
     fs::write(format!("{lib_root}/meta.json"), &meta_json).map_err(|e| e.to_string())?;
+
+    // 记录安装结果（供日志排查：bin/lib 是否为空；空则列出 tmp 目录定位解压问题）
+    util::log_file(
+        dir,
+        &format!("install({}): bins=[{}] libs=[{}]", entry.id, bins.join(","), installed_libs.join(",")),
+    );
+    if bins.is_empty() && installed_libs.is_empty() {
+        util::log_file(dir, &format!("警告: {} 未装出任何文件，tmp 目录结构:", entry.id));
+        if let Ok((_, out, _)) = util::run(&format!("ls -laR '{tmp}' 2>/dev/null | head -n 40"), Some(10)) {
+            util::log_file(dir, &out);
+        }
+    }
 
     let _ = fs::remove_dir_all(&tmp);
 
@@ -325,18 +349,50 @@ fn install_from_termux(
     let deb_path = format!("{cache}/{}.deb", entry.id);
     let deb_url = format!("{mirror}/{filename}");
     util::download(&deb_url, &deb_path)?;
-
-    let data_xz = format!("{tmp}/data.tar.xz");
-    ar::extract_member(&deb_path, "data.tar.xz", &data_xz)?;
-    let data_tar = format!("{tmp}/data.tar");
-    util::xz_decompress(&data_xz, &data_tar)?;
-
-    let extract_cmd = format!(
-        "cd '{tmp}' && tar -xf '{data_tar}' 2>/dev/null || busybox tar -xf '{data_tar}'"
+    util::log_file(
+        dir,
+        &format!(
+            "已下载 .deb: {}（{} 字节）",
+            entry.id,
+            std::fs::metadata(&deb_path).map(|x| x.len()).unwrap_or(0)
+        ),
     );
+
+    // 5) 从 .deb 提取 data 归档（支持 xz / gz / zst）
+    let mut data_file = String::new();
+    let mut data_kind = "";
+    for ext in ["xz", "gz", "zst"] {
+        let m = format!("{tmp}/data.tar.{ext}");
+        if ar::extract_member(&deb_path, &format!("data.tar.{ext}"), &m).is_ok()
+            && std::fs::metadata(&m).map(|x| x.len() > 0).unwrap_or(false)
+        {
+            data_file = m;
+            data_kind = ext;
+            break;
+        }
+    }
+    if data_file.is_empty() {
+        return Err("无法从 .deb 提取 data 归档（xz/gz/zst 均未找到）".to_string());
+    }
+    util::log_file(
+        dir,
+        &format!(
+            "已提取 data.tar.{data_kind}（{} 字节）",
+            std::fs::metadata(&data_file).map(|x| x.len()).unwrap_or(0)
+        ),
+    );
+
+    let extract_cmd = if data_kind == "xz" {
+        let data_tar = format!("{tmp}/data.tar");
+        util::xz_decompress(&data_file, &data_tar)?;
+        format!("cd '{tmp}' && tar -xf '{data_tar}' 2>/dev/null || busybox tar -xf '{data_tar}'")
+    } else {
+        // gz/zst：tar 自动识别压缩格式（zst 需 tar 支持，尽力而为）
+        format!("cd '{tmp}' && tar -xf '{data_file}' 2>/dev/null || busybox tar -xf '{data_file}'")
+    };
     let (ok, _, err) = util::run(&extract_cmd, Some(120))?;
     if !ok {
-        return Err(format!("解包失败: {err}"));
+        return Err(format!("解包 data.tar.{data_kind} 失败: {err}"));
     }
 
     Ok(InstalledMeta {
