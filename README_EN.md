@@ -1,22 +1,29 @@
-# LibPool · 库池
+<p align="center">
+  <img src="webroot/icons/icon.png" width="112" height="112" alt="LibPool" />
+</p>
 
-English | [简体中文](README.md)
+<h1 align="center">LibPool</h1>
 
-> Install common/hot Android native libraries that are missing by default, and bind-mount them to `/system/bin` (and `/system/lib`) with one tap.
-> Ships **KsuWebUI**: 322+ libraries, light/dark theme, custom wallpaper, G2 rounded-corner touch UI, and cloud update.
-> Core logic is a **Rust native binary** — low power, no resident process.
+<p align="center">
+  <b>Install common/hot Android native libraries that are missing by default, and bind-mount them to <code>/system/bin</code> (and <code>/system/lib</code>) with one tap.</b><br />
+  Ships KsuWebUI: 322+ libraries · light/dark theme · custom wallpaper · cloud update · Rust native, low power
+</p>
 
-[![License](https://img.shields.io/badge/License-Apache--2.0-blue.svg)](./LICENSE)
-[![Platform](https://img.shields.io/badge/Platform-Magisk%20%7C%20KernelSU%20%7C%20APatch-orange.svg)](#installation)
-[![KsuWebUI](https://img.shields.io/badge/UI-KsuWebUI-0099ff.svg)](#usage)
-[![Release](https://img.shields.io/github/v/release/MineACEx/libpool?color=0071e3&label=Release)](./releases)
-[![Downloads](https://img.shields.io/github/downloads/MineACEx/libpool/total?color=34c759&label=Downloads)](./releases)
-[![Stars](https://img.shields.io/github/stars/MineACEx/libpool?color=e5a00d&label=Stars)](.)
-[![Forks](https://img.shields.io/github/forks/MineACEx/libpool?color=5856d6&label=Forks)](.)
-[![Last commit](https://img.shields.io/github/last-commit/MineACEx/libpool?label=Last%20commit)](.)
-[![Issues](https://img.shields.io/github/issues/MineACEx/libpool?color=ff453a&label=Issues)](./issues)
-[![Language](https://img.shields.io/github/languages/top/MineACEx/libpool?label=Language)](.)
-[![Code size](https://img.shields.io/github/languages/code-size/MineACEx/libpool?label=Code%20size)](.)
+<p align="center">English · [简体中文](README.md)</p>
+
+<p align="center">
+  [![License](https://img.shields.io/badge/License-Apache--2.0-blue.svg)](./LICENSE)
+  [![Platform](https://img.shields.io/badge/Platform-Magisk%20%7C%20KernelSU%20%7C%20APatch-orange.svg)](#installation)
+  [![KsuWebUI](https://img.shields.io/badge/UI-KsuWebUI-0099ff.svg)](#usage)
+  [![Release](https://img.shields.io/github/v/release/MineACEx/libpool?color=0071e3&label=Release)](./releases)
+  [![Downloads](https://img.shields.io/github/downloads/MineACEx/libpool/total?color=34c759&label=Downloads)](./releases)
+  [![Stars](https://img.shields.io/github/stars/MineACEx/libpool?color=e5a00d&label=Stars)](.)
+  [![Forks](https://img.shields.io/github/forks/MineACEx/libpool?color=5856d6&label=Forks)](.)
+  [![Last commit](https://img.shields.io/github/last-commit/MineACEx/libpool?label=Last%20commit)](.)
+  [![Issues](https://img.shields.io/github/issues/MineACEx/libpool?color=ff453a&label=Issues)](./issues)
+  [![Language](https://img.shields.io/github/languages/top/MineACEx/libpool?label=Language)](.)
+  [![Code size](https://img.shields.io/github/languages/code-size/MineACEx/libpool?label=Code%20size)](.)
+</p>
 
 Supports: **Magisk** / **KernelSU** / **APatch**, including **32-bit (armv7)** devices.
 

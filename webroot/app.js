@@ -1140,17 +1140,30 @@ function warmupBlur() {
   }));
 }
 
-/* ---------------- 高配机型 GPU 加速 ----------------
-   骁龙8Gen2 / 天玑9300 及以上都是 8 核，用 hardwareConcurrency ≥ 8 作为代理，
-   命中则给 <html> 加 .gpu，CSS 据此给所有毛玻璃面建独立 GPU 合成层
+/* ---------------- 高配机型 GPU 加速（设置页可开关） ----------------
+   骁龙8Gen2 / 天玑9300 及以上通常 ≥8 核，默认自动开启；
+   给 <html> 加 .gpu 后，CSS 给所有毛玻璃面建独立 GPU 合成层
    （will-change: backdrop-filter），模糊由 GPU 独立渲染、进一步加速。
-   低配机型不加类，不叠加合成层，避免内存/开销反噬。 */
-function detectHighEndGPU() {
-  try {
-    if ((navigator.hardwareConcurrency || 0) >= 8) {
-      document.documentElement.classList.add("gpu");
-    }
-  } catch (e) { /* 忽略，低配按默认渲染 */ }
+   低配机型默认关闭，避免内存/开销反噬。用户可在设置里手动切换并记住选择。 */
+function applyGpu(on) {
+  document.documentElement.classList.toggle("gpu", !!on);
+  const sw = $("gpuSwitch");
+  if (sw) { sw.classList.toggle("on", !!on); sw.setAttribute("aria-checked", on ? "true" : "false"); }
+}
+
+function setupGpu() {
+  const sw = $("gpuSwitch");
+  const saved = localStorage.getItem("libpool-gpu");
+  const auto = (navigator.hardwareConcurrency || 0) >= 8;
+  applyGpu(saved === null ? auto : saved === "1");
+  if (sw) {
+    sw.addEventListener("click", () => {
+      const next = !document.documentElement.classList.contains("gpu");
+      applyGpu(next);
+      localStorage.setItem("libpool-gpu", next ? "1" : "0");
+      showToast(next ? "已开启 GPU 加速" : "已关闭 GPU 加速");
+    });
+  }
 }
 
 /* ---------------- 启动 ---------------- */
@@ -1158,7 +1171,7 @@ function detectHighEndGPU() {
   try { enableEdgeToEdge(true); } catch (e) { /* noop */ }
   try { fullScreen(true); } catch (e) { /* noop */ }
 
-  detectHighEndGPU();   // 高配机型先开启 GPU 加速
+  setupGpu();   // 高配机型 GPU 加速（默认自动，设置页可开关）
   warmupBlur();   // 先预热毛玻璃着色器，切换页面时秒加载
   setupTabs();
   setupTheme();

@@ -1,22 +1,29 @@
-# LibPool · 库池
+<p align="center">
+  <img src="webroot/icons/icon.png" width="112" height="112" alt="LibPool · 库池" />
+</p>
 
-[English](README_EN.md) | 简体中文
+<h1 align="center">LibPool · 库池</h1>
 
-> 补齐 Android 默认缺失的常用/热门库，一键挂载到 `/system/bin`（及 `/system/lib`）。
-> 内置 **KsuWebUI**：322+ 扩展库、亮/暗主题、自定义背景、G2 圆角触摸动效、云更新。
-> 核心逻辑用 **Rust 原生二进制** 实现，低功耗、无常驻进程。
+<p align="center">
+  <b>补齐 Android 默认缺失的常用/热门库，一键挂载到 <code>/system/bin</code>（及 <code>/system/lib</code>）</b><br />
+  内置 KsuWebUI：322+ 扩展库 · 亮暗主题 · 自定义背景 · 云更新 · Rust 原生低功耗
+</p>
 
-[![License](https://img.shields.io/badge/License-Apache--2.0-blue.svg)](./LICENSE)
-[![Platform](https://img.shields.io/badge/Platform-Magisk%20%7C%20KernelSU%20%7C%20APatch-orange.svg)](#安装)
-[![KsuWebUI](https://img.shields.io/badge/UI-KsuWebUI-0099ff.svg)](#使用)
-[![Release](https://img.shields.io/github/v/release/MineACEx/libpool?color=0071e3&label=Release)](./releases)
-[![Downloads](https://img.shields.io/github/downloads/MineACEx/libpool/total?color=34c759&label=Downloads)](./releases)
-[![Stars](https://img.shields.io/github/stars/MineACEx/libpool?color=e5a00d&label=Stars)](.)
-[![Forks](https://img.shields.io/github/forks/MineACEx/libpool?color=5856d6&label=Forks)](.)
-[![Last commit](https://img.shields.io/github/last-commit/MineACEx/libpool?label=Last%20commit)](.)
-[![Issues](https://img.shields.io/github/issues/MineACEx/libpool?color=ff453a&label=Issues)](./issues)
-[![Language](https://img.shields.io/github/languages/top/MineACEx/libpool?label=Language)](.)
-[![Code size](https://img.shields.io/github/languages/code-size/MineACEx/libpool?label=Code%20size)](.)
+<p align="center">[English](README_EN.md) · 简体中文</p>
+
+<p align="center">
+  [![License](https://img.shields.io/badge/License-Apache--2.0-blue.svg)](./LICENSE)
+  [![Platform](https://img.shields.io/badge/Platform-Magisk%20%7C%20KernelSU%20%7C%20APatch-orange.svg)](#安装)
+  [![KsuWebUI](https://img.shields.io/badge/UI-KsuWebUI-0099ff.svg)](#使用)
+  [![Release](https://img.shields.io/github/v/release/MineACEx/libpool?color=0071e3&label=Release)](./releases)
+  [![Downloads](https://img.shields.io/github/downloads/MineACEx/libpool/total?color=34c759&label=Downloads)](./releases)
+  [![Stars](https://img.shields.io/github/stars/MineACEx/libpool?color=e5a00d&label=Stars)](.)
+  [![Forks](https://img.shields.io/github/forks/MineACEx/libpool?color=5856d6&label=Forks)](.)
+  [![Last commit](https://img.shields.io/github/last-commit/MineACEx/libpool?label=Last%20commit)](.)
+  [![Issues](https://img.shields.io/github/issues/MineACEx/libpool?color=ff453a&label=Issues)](./issues)
+  [![Language](https://img.shields.io/github/languages/top/MineACEx/libpool?label=Language)](.)
+  [![Code size](https://img.shields.io/github/languages/code-size/MineACEx/libpool?label=Code%20size)](.)
+</p>
 
 支持：**Magisk** / **KernelSU** / **APatch**，兼容 **32 位（armv7）** 设备。
 
