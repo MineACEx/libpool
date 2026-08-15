@@ -32,14 +32,15 @@ const state = {
 };
 
 /* 公告网址（指向本仓库 announce.md，内容为 Markdown，每天最多弹一次）。
-   留空则不启用公告。设备上优先读模块 .git/url.txt（用户可手动覆盖）。 */
-const ANNOUNCEMENT_URL = "https://raw.githubusercontent.com/MineACEx/libpool/master/announce.md";
+   用 jsDelivr CDN 走国内节点，访问更快；留空则不启用公告。
+   设备上优先读模块 .git/url.txt（用户可手动覆盖）。 */
+const ANNOUNCEMENT_URL = "https://cdn.jsdelivr.net/gh/MineACEx/libpool@master/announce.md";
 
 /* 云更新配置（与公告同机制：可读模块 .git/update.txt、.git/download.txt，否则回退内置常量）。
    UPDATE_URL 指向纯文本版本号（如 1.1.0）；UPDATE_DOWNLOAD_URL 指向下载/更新页面。
    检测到云端版本与本地不一致时，弹窗提示并给出可点击跳转默认浏览器的下载链接。
    DEFAULT_RELEASES_URL：未配置下载地址时的兜底更新页。 */
-const UPDATE_URL = "https://raw.githubusercontent.com/MineACEx/libpool/master/version.txt";
+const UPDATE_URL = "https://cdn.jsdelivr.net/gh/MineACEx/libpool@master/version.txt";
 const UPDATE_DOWNLOAD_URL = "https://github.com/MineACEx/libpool/releases";
 
 /* ---------------- 模块路径与 libman 调用 ---------------- */
