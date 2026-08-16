@@ -9,7 +9,7 @@
   内置 KsuWebUI：233 个扩展库 · 亮暗主题 · 自定义背景 · 云更新 · Rust 原生低功耗
 </p>
 
-<p align="center">[English](README_EN.md) · 简体中文</p>
+<p align="center">[English](https://github.com/MineACEx/libpool/blob/master/README_EN.md) · 简体中文</p>
 
 <p align="center">
   <a href="https://github.com/MineACEx/libpool/blob/master/LICENSE"><img src="https://img.shields.io/badge/License-Apache--2.0-blue.svg" alt="License" /></a>
@@ -66,7 +66,7 @@
 
 ## 安装
 
-1. 下载 [Releases](./releases) 里的 `libpool-<version>.zip`（大陆用户可用 Release 页里提供的国内加速镜像链接）
+1. 下载 [Releases](https://github.com/MineACEx/libpool/releases) 里的 `libpool-<version>.zip`（大陆用户可用 Release 页里提供的国内加速镜像链接）
 2. 打开 Magisk / KernelSU 管理器 → 模块 → 从本地安装 → 选择该 zip
 3. 重启（或打开 KernelSU 的模块 WebUI 直接开始管理）
 
@@ -184,7 +184,7 @@ libpool/
 模块只往 `/system/bin` 挂载你手动开启的库，不修改系统分区。删除库也不会影响系统原有文件。
 
 **Q：想反馈 Bug 或提需求？**
-请在 [Issues](./issues) 新建 Issue，尽量附上：机型/安卓版本/架构（`uname -m`）、模块版本号、复现步骤、以及 WebUI 控制台日志。
+请在 [Issues](https://github.com/MineACEx/libpool/issues) 新建 Issue，尽量附上：机型/安卓版本/架构（`uname -m`）、模块版本号、复现步骤、以及 WebUI 控制台日志。
 
 ## 贡献
 
@@ -192,4 +192,4 @@ libpool/
 
 ## 许可证
 
-本项目使用 **Apache License 2.0** 开源。详见 [LICENSE](./LICENSE)。
+本项目使用 **Apache License 2.0** 开源。详见 [LICENSE](https://github.com/MineACEx/libpool/blob/master/LICENSE)。

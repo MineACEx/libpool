@@ -9,7 +9,7 @@
   Ships KsuWebUI: 233 libraries · light/dark theme · custom wallpaper · cloud update · Rust native, low power
 </p>
 
-<p align="center">English · [简体中文](README.md)</p>
+<p align="center">English · [简体中文](https://github.com/MineACEx/libpool/blob/master/README.md)</p>
 
 <p align="center">
   <a href="https://github.com/MineACEx/libpool/blob/master/LICENSE"><img src="https://img.shields.io/badge/License-Apache--2.0-blue.svg" alt="License" /></a>
@@ -66,7 +66,7 @@ Supports: **Magisk** / **KernelSU** / **APatch**, including **32-bit (armv7)** d
 
 ## Installation
 
-1. Download `libpool-<version>.zip` from [Releases](./releases)
+1. Download `libpool-<version>.zip` from [Releases](https://github.com/MineACEx/libpool/releases)
 2. Open Magisk / KernelSU manager → Modules → Install from storage → select the zip
 3. Reboot (or open the module's WebUI in KernelSU to start managing right away)
 
@@ -183,7 +183,7 @@ Switch to the Tsinghua or BFSU mirror in **Settings**.
 The module only bind-mounts libraries you enable into `/system/bin`; it never modifies the system partition. Deleting a library does not affect the original system files.
 
 **Q: Want to report a bug or request a feature?**
-Open an issue on [Issues](./issues) with: device model / Android version / arch (`uname -m`), module version, reproduction steps, and WebUI console logs.
+Open an issue on [Issues](https://github.com/MineACEx/libpool/issues) with: device model / Android version / arch (`uname -m`), module version, reproduction steps, and WebUI console logs.
 
 ## Contributing
 
@@ -191,4 +191,4 @@ Pull requests and issues are welcome. Code follows the Apache-2.0 license; every
 
 ## License
 
-This project is open source under the **Apache License 2.0**. See [LICENSE](./LICENSE).
+This project is open source under the **Apache License 2.0**. See [LICENSE](https://github.com/MineACEx/libpool/blob/master/LICENSE).
