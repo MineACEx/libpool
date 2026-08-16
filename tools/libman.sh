@@ -472,6 +472,7 @@ bind_mount() {
 
 # 挂载指定库：将 libs/<id>/bin/* 绑定到 /system/bin/，
 #          将 libs/<id>/lib/* 绑定到 /system/lib/（lib 失败不致命）
+# 安全红线：若系统里已有同名 bin/so，一律跳过、绝不覆盖（对应 Rust 版 copy_if_safe）。
 # 对应 Rust 版 mount_lib
 # 用法: mount_lib <id>
 mount_lib() {
@@ -479,6 +480,7 @@ mount_lib() {
     local lib_root="$MODDIR/libs/$id"
     local bin_dir="$lib_root/bin"
     local lib_dir="$lib_root/lib"
+    local name
     # 挂载 bin 目录下所有条目
     if [ -d "$bin_dir" ]; then
         local old_ifs="$IFS"
@@ -487,13 +489,19 @@ mount_lib() {
         for name in $(ls -A "$bin_dir" 2>/dev/null | sort); do
             IFS="$old_ifs"
             [ -n "$name" ] || continue
+            if [ -e "/system/bin/$name" ]; then
+                logfile "$id: 跳过 $name（/system/bin/$name 已存在，不覆盖）"
+                IFS='
+'
+                continue
+            fi
             bind_mount "$bin_dir/$name" "/system/bin/$name" || true
             IFS='
 '
         done
         IFS="$old_ifs"
     fi
-    # 挂载 lib 目录下所有条目（失败不致命）
+    # 挂载 lib 目录下所有条目（失败不致命；系统已有同名 so 一律跳过，绝不覆盖）
     if [ -d "$lib_dir" ]; then
         local old_ifs2="$IFS"
         IFS='
@@ -501,6 +509,12 @@ mount_lib() {
         for name in $(ls -A "$lib_dir" 2>/dev/null | sort); do
             IFS="$old_ifs2"
             [ -n "$name" ] || continue
+            if [ -e "/system/lib/$name" ]; then
+                logfile "$id: 跳过 $name（/system/lib/$name 已存在，不覆盖）"
+                IFS='
+'
+                continue
+            fi
             bind_mount "$lib_dir/$name" "/system/lib/$name" 2>/dev/null || true
             IFS='
 '
@@ -1558,6 +1572,82 @@ cmd_version() {
     return 0
 }
 
+# -----------------------------------------------------------------------------
+# hide：Magisk / root 检测隐藏（对应 Rust 版 hide.rs，一次性执行无驻留）
+# -----------------------------------------------------------------------------
+HIDE_STATE="$MODDIR/hide/state.json"
+HIDE_STUB="$MODDIR/hide/stub"
+
+# 已覆盖的路径列表（从 hide/state.json 解析出引号内的 / 开头路径）
+hide_applied() {
+    [ -f "$HIDE_STATE" ] || return 0
+    tr -d '\n' < "$HIDE_STATE" 2>/dev/null | grep -oE '"/[^"]*"' | tr -d '"'
+}
+
+# hide apply：bind mount 空文件覆盖存在的检测路径（幂等，只补缺）
+cmd_hide_apply() {
+    mkdir -p "$HIDE_STUB" 2>/dev/null || true
+    local already applied=0 skipped=0 p
+    already=$(hide_applied)
+    for p in /system/bin/su /system/xbin/su /sbin/su /debug_ramdisk/su \
+             /system/bin/magisk /system/bin/magiskinit /sbin/magisk \
+             /sbin/magiskinit /sbin/.magisk; do
+        [ -e "$p" ] || continue                      # 系统里没有的跳过
+        if echo "$already" | grep -qx "$p"; then
+            continue                                  # 已由我们覆盖
+        fi
+        local base="${p##*/}"
+        local stub="$HIDE_STUB/$base"
+        : > "$stub" 2>/dev/null
+        if mount --bind "$stub" "$p" 2>/dev/null; then
+            echo "$p" >> "$HIDE_STATE"
+            applied=$((applied + 1))
+            echo "已隐藏: $p"
+        else
+            skipped=$((skipped + 1))
+            log "hide 跳过: $p"
+        fi
+    done
+    [ -n "$already" ] && { echo "$already" >> "$HIDE_STATE" 2>/dev/null; }
+    # 去重（避免重复执行时 state 里出现重复路径）
+    local uniq
+    uniq=$(hide_applied | sort -u)
+    : > "$HIDE_STATE"
+    for p in $uniq; do echo "$p" >> "$HIDE_STATE"; done
+    if [ "$applied" -eq 0 ] && [ -z "$uniq" ]; then
+        err "没有可覆盖的路径（可能设备无这些检测点或不支持 bind mount）"
+        return 1
+    fi
+    log "hide apply: 本次覆盖 $applied 个，跳过 $skipped 个"
+    echo "隐藏完成：本次覆盖 $applied 个路径"
+    return 0
+}
+
+# hide restore：umount 我们覆盖过的路径并清理
+cmd_hide_restore() {
+    local applied ok=0 p
+    applied=$(hide_applied)
+    for p in $applied; do
+        umount "$p" 2>/dev/null && ok=$((ok + 1))
+    done
+    rm -rf "$HIDE_STUB" 2>/dev/null || true
+    : > "$HIDE_STATE"
+    log "hide restore: 还原 $ok 个路径"
+    echo "已还原 $ok 个隐藏路径"
+    return 0
+}
+
+# hide status：查看当前覆盖状态
+cmd_hide_status() {
+    local applied
+    applied=$(hide_applied)
+    local n=0 p
+    for p in $applied; do n=$((n + 1)); done
+    echo "{ \"applied\": $n }"
+    for p in $applied; do echo "  $p"; done
+    return 0
+}
+
 # help：打印用法
 cmd_help() {
     cat <<'EOF'
@@ -1568,12 +1658,15 @@ cmd_help() {
   status              简要状态（JSON）
   install <id>        下载并安装扩展库
   remove <id>         删除已安装的库（含卸载）
-  mount <id>          挂载指定库到 /system/bin、/system/lib
+  mount <id>          挂载指定库到 /system/bin、/system/lib（即时生效，无需重启）
   unmount <id>        卸载指定库
   toggle <id>         一键开关（缺库自动安装）
   apply               按已保存状态重放挂载（开机用）
   ensure-core         补装缺失的核心库（安装/开机用）
   reset               卸载全部并清理
+  hide apply          隐藏 Magisk/root 检测痕迹（bind 覆盖，一次性无驻留）
+  hide restore        还原 hide 覆盖
+  hide status         查看当前隐藏状态
   config <key> <val>  读取/设置配置（如 mirror）
   version             打印版本
 EOF

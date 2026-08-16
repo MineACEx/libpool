@@ -52,6 +52,7 @@
     <nav class="tabs" role="tablist" aria-label="主导航">
       <button class="tab active" data-tab="mounted" role="tab" aria-selected="true">已挂载</button>
       <button class="tab" data-tab="store" role="tab" aria-selected="false">扩展库</button>
+      <button class="tab" data-tab="hide" role="tab" aria-selected="false">深度隐藏</button>
       <button class="tab" data-tab="settings" role="tab" aria-selected="false">设置</button>
       <span class="tab-indicator" id="tabIndicator"></span>
     </nav>
@@ -101,6 +102,26 @@
         </div>
       </section>
 
+      <!-- ============ 深度隐藏 ============ -->
+      <section class="panel" id="panel-hide" role="tabpanel" hidden>
+        <div class="glass-card" style="margin-bottom:16px">
+          <div class="setting-row">
+            <div class="setting-text">
+              <div class="setting-name">对着指定应用隐藏 root</div>
+              <div class="setting-desc">给银行、MOMO、淘宝这类会检测 root / Magisk / KernelSU 的应用，把它们加进 KernelSU 的 denylist，运行时彻底隐藏模块挂载与 su 痕迹。开启后立即生效，无需重启。</div>
+            </div>
+          </div>
+        </div>
+        <div class="section-title">
+          <h2>已选择的应用</h2>
+          <button class="link-btn" id="btnHideAdd">添加应用</button>
+        </div>
+        <div class="lib-list" id="hideList"></div>
+        <div class="hint-card" id="hideEmpty" hidden>
+          <div class="hint-title">还没有选择任何应用</div>
+          <div class="hint-body">点「添加应用」挑一个会检测 root 的 App，开关打开后它就读不到你手机的隐藏环境了。</div>
+        </div>
+      </section>
       <!-- ============ 设置 ============ -->
       <section class="panel" id="panel-settings" role="tabpanel" hidden>
         <div class="section-title"><h2>外观</h2></div>
@@ -310,6 +331,25 @@
       <div class="log-actions">
         <button class="btn-primary announcement-ok ripple-host" id="btnLogCopy">复制</button>
         <button class="btn-ghost announcement-ok ripple-host" id="btnLogClose">关闭</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 添加应用选择面板（深度隐藏页）：可搜索已装应用，选中后追加到隐藏列表 -->
+  <div class="hide-picker" id="hidePicker" hidden role="dialog" aria-modal="true" aria-labelledby="hidePickerTitle">
+    <div class="hide-picker-backdrop"></div>
+    <div class="hide-picker-card">
+      <div class="hide-picker-head">
+        <div class="hide-picker-title" id="hidePickerTitle">选择应用</div>
+        <span class="announcement-badge">深度隐藏</span>
+      </div>
+      <div class="search-box" style="margin-bottom:12px">
+        <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.2-3.2"/></svg>
+        <input type="search" id="hideSearchInput" placeholder="搜索应用…" autocomplete="off" />
+      </div>
+      <div class="hide-picker-list" id="hidePickerList"></div>
+      <div class="hide-picker-foot">
+        <button class="btn-primary ripple-host" id="btnHidePickerDone">完成</button>
       </div>
     </div>
   </div>

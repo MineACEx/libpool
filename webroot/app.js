@@ -294,6 +294,130 @@ function storeCardHTML(r, i, animate = true) {
   </div>`;
 }
 
+/* ---------------- 渲染：深度隐藏（hide apps） ----------------
+   按应用隐藏 root = 把包名加进 KernelSU 的 denylist（libman hide apps 系列命令）。
+   hideList 渲染已配置的应用行（毛玻璃 + 开关，复用 .lib-card/.switch）；
+   「添加应用」弹出 hidePicker 底部面板，可搜索已装三方应用并选中追加。 */
+const hideListEl = $("hideList");
+const hidePickerEl = $("hidePicker");
+const hidePickerListEl = $("hidePickerList");
+const hidePickerDoneEl = $("btnHidePickerDone");
+const hidePickerAddEl = $("btnHideAdd");
+
+async function loadHideConfig() {
+  if (state.inPreview) {
+    // 预览模式：给出一组可交互的示例
+    state.installedPkgs = [
+      "com.example.bank", "com.taobao.taobao", "com.sina.weibo",
+      "com.tencent.mm", "com.alipay.android", "com.momloir.momo",
+    ];
+    state.hideApps = [
+      { pkg: "com.example.bank", enabled: true },
+      { pkg: "com.taobao.taobao", enabled: true },
+    ];
+    return;
+  }
+  try {
+    const raw = await libmanExec("hide apps scan");
+    try { state.installedPkgs = JSON.parse(raw); } catch (e) { state.installedPkgs = []; }
+  } catch (e) { state.installedPkgs = []; logWebui("hide apps scan 失败: " + e.message); }
+  state.hideApps = [];
+  try {
+    const cfg = await libmanExec("hide apps list");
+    const arr = JSON.parse(cfg);
+    if (Array.isArray(arr)) state.hideApps = arr.map((x) => ({ pkg: x.pkg, enabled: !!x.enabled }));
+  } catch (e) { logWebui("hide apps list 失败: " + e.message); }
+}
+
+function renderHide() {
+  if (state.hideApps.length === 0) {
+    hideListEl.innerHTML = "";
+    $("hideEmpty").hidden = false;
+    return;
+  }
+  $("hideEmpty").hidden = true;
+  hideListEl.innerHTML = state.hideApps
+    .map((a, i) => `
+      <div class="lib-card reveal in" style="--i:${Math.min(i, 12)}">
+        <div class="lib-icon">${escapeHtml((a.pkg || "?")[0].toUpperCase())}</div>
+        <div class="lib-body">
+          <div class="lib-name">
+            <span style="font-family:ui-monospace,'SF Mono',monospace;font-size:13.5px">${escapeHtml(a.pkg)}</span>
+            ${a.enabled ? '<span class="lib-ver" style="color:var(--green)">已隐藏</span>' : ""}
+          </div>
+          <div class="lib-desc">${a.enabled ? "该应用运行时看不到你的 root 环境" : "已加入列表，未启用"}</div>
+        </div>
+        <button class="switch ${a.enabled ? "on" : ""}" data-pkg="${a.pkg}" data-on="${a.enabled}" role="switch" aria-checked="${a.enabled}" aria-label="隐藏 ${a.pkg}"></button>
+      </div>`)
+    .join("");
+
+  hideListEl.querySelectorAll(".switch").forEach((sw) => {
+    sw.addEventListener("click", () => toggleHideApp(sw.dataset.pkg, sw.dataset.on !== "true"));
+  });
+}
+
+async function toggleHideApp(pkg, on) {
+  if (state.inPreview) { showToast("预览模式下不执行操作"); return; }
+  logWebui(`hide apps set ${pkg} ${on ? "on" : "off"}`);
+  try {
+    const r = await exec(libmanCmd(`hide apps set ${pkg} ${on ? "on" : "off"}`));
+    if (r.errno !== 0) throw new Error((r.stderr || "操作失败").trim());
+    showToast((r.stdout || (on ? "已启用隐藏" : "已关闭隐藏")).trim());
+    await loadHideConfig();
+    renderHide();
+  } catch (e) {
+    logWebui(`hide apps set 失败: ${pkg} ${e.message}`);
+    showToast("操作失败：" + e.message, true);
+  }
+}
+
+function openHidePicker() {
+  const already = new Set(state.hideApps.map((a) => a.pkg));
+  const candidates = (state.installedPkgs || []).filter((p) => !already.has(p));
+  hidePickerListEl.innerHTML = candidates.length
+    ? candidates.map((p) => `
+        <div class="lib-card reveal in" data-pkg="${escapeHtml(p)}">
+          <div class="lib-icon">${escapeHtml((p || "?")[0].toUpperCase())}</div>
+          <div class="lib-body">
+            <div class="lib-name" style="font-family:ui-monospace,'SF Mono',monospace;font-size:13.5px">${escapeHtml(p)}</div>
+          </div>
+          <span class="mirror-radio"></span>
+        </div>`).join("")
+    : '<div class="hint-card" style="border:none"><div class="hint-title">没有可添加的应用</div><div class="hint-body">已装应用都已加入列表，或在预览模式下。</div></div>';
+  hidePickerListEl.querySelectorAll(".lib-card").forEach((row) => {
+    row.addEventListener("click", () => row.classList.toggle("active"));
+  });
+  hidePickerEl.hidden = false;
+  requestAnimationFrame(() => hidePickerEl.classList.add("open"));
+  $("hideSearchInput").value = "";
+}
+
+function renderHidePickerFilter() {
+  const q = $("hideSearchInput").value.trim().toLowerCase();
+  hidePickerListEl.querySelectorAll(".lib-card").forEach((row) => {
+    const pkg = row.dataset.pkg || "";
+    row.hidden = q && !pkg.toLowerCase().includes(q);
+  });
+}
+
+function closeHidePicker() {
+  hidePickerEl.classList.remove("open");
+  setTimeout(() => { hidePickerEl.hidden = true; }, 440);
+}
+
+function setupHide() {
+  hidePickerAddEl.addEventListener("click", openHidePicker);
+  hidePickerEl.querySelector(".hide-picker-backdrop").addEventListener("click", closeHidePicker);
+  hidePickerDoneEl.addEventListener("click", async () => {
+    const picked = [...hidePickerListEl.querySelectorAll(".lib-card.active")]
+      .map((r) => r.dataset.pkg).filter(Boolean);
+    closeHidePicker();
+    if (!picked.length) return;
+    for (const pkg of picked) await toggleHideApp(pkg, true);
+  });
+  $("hideSearchInput").addEventListener("input", renderHidePickerFilter);
+}
+
 /* ---------------- 操作 ---------------- */
 async function toggleLib(id) {
   if (state.inPreview) { showToast("预览模式下不执行操作"); return; }
@@ -1409,6 +1533,7 @@ function setupLogUI() {
   setupWallBlur();
   setupAnnouncementUI();
   setupLogUI();
+  setupHide();
   $("btnRefresh").addEventListener("click", refresh);
   $("btnCancelDownload").addEventListener("click", cancelDownload);
 
@@ -1423,6 +1548,7 @@ function setupLogUI() {
 
   renderMounted();
   renderStore();
+  loadHideConfig().then(renderHide);
   setupScrollReveal();   // 首屏卡片渲染后启用滚动入场
   renderStatus();
   $("aboutVer").textContent = await localVersion();

@@ -9,6 +9,7 @@
 //! - 挂载用 bind mount，卸载用 umount，均幂等。
 
 mod ar;
+mod hide;
 mod json;
 mod mount;
 mod repo;
@@ -28,12 +29,18 @@ fn usage() -> String {
   install <id>        下载并安装扩展库（自动镜像回退）
   install-local <id> <deb路径>  从本地 .deb 安装（不联网，适合 WebUI 已下载的场景）
   remove <id>         删除已安装的库（含卸载）
-  mount <id>          挂载指定库到 /system/bin、/system/lib
+  mount <id>          挂载指定库到 /system/bin、/system/lib（即时生效，无需重启）
   unmount <id>        卸载指定库
   toggle <id>         一键开关（缺库自动安装）
   apply               按已保存状态重放挂载（开机用）
   ensure-core         补装缺失的核心库（安装/开机用）
   reset               卸载全部并清理
+  hide apply          隐藏 Magisk/root 检测痕迹（bind 覆盖，一次性无驻留）
+  hide restore        还原 hide 覆盖
+  hide status         查看当前隐藏状态
+  hide apps scan      扫描已安装的三方应用（JSON）
+  hide apps list      列出深度隐藏配置（JSON）
+  hide apps set <pkg> <on|off>  启用/关闭某应用的深度隐藏
   config <key> <val>  读取/设置配置（如 mirror）
   version             打印版本
 "#
@@ -97,6 +104,7 @@ fn main() -> ExitCode {
             }
             toggle_cmd(&dir, &args[1])
         }
+        "hide" => hide_cmd(&dir, &args[1..]),
         "apply" => apply_cmd(&dir),
         "ensure-core" => ensure_core_cmd(&dir),
         "reset" => reset_cmd(&dir),
@@ -159,8 +167,22 @@ fn mount_cmd(dir: &str, id: &str) -> Result<(), String> {
     if !installed {
         return Err(format!("库未安装: {id}，请先下载"));
     }
-    mount::mount_lib(dir, id)?;
+    mount::mount_lib_hot(dir, id)?;
     repo::mark_mounted(dir, id, true)
+}
+
+/// hide 子命令分发：apply / restore / status / apps
+fn hide_cmd(dir: &str, args: &[String]) -> Result<(), String> {
+    match args.first().map(|s| s.as_str()) {
+        Some("apply") => hide::hide_apply(dir),
+        Some("restore") => hide::hide_restore(dir),
+        Some("status") => hide::hide_status(dir),
+        Some("apps") => hide::hide_apps_cmd(dir, &args[1..]),
+        Some(other) => Err(format!(
+            "未知 hide 子命令: {other}（可用: apply / restore / status / apps）"
+        )),
+        None => Err("hide 需要子命令: apply / restore / status / apps".to_string()),
+    }
 }
 
 fn unmount_cmd(dir: &str, id: &str) -> Result<(), String> {
@@ -190,7 +212,7 @@ fn apply_cmd(dir: &str) -> Result<(), String> {
             eprintln!("跳过（未安装）: {id}");
             continue;
         }
-        match mount::mount_lib(dir, id) {
+        match mount::mount_lib_hot(dir, id) {
             Ok(()) => ok += 1,
             Err(e) => {
                 fail += 1;

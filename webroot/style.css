@@ -451,7 +451,7 @@ body {
   position: absolute;
   top: 4px; bottom: 4px;
   left: 4px;
-  width: calc((100% - 8px) / 3);
+  width: calc((100% - 8px) / 4);
   border-radius: 999px;
   /* 选中项：比标签栏更亮一点、更不透明，模糊度更高（跟随卡片滑杆并加深 14px）；
      灰色只加 5%，提亮观感（亮色更白、暗色更亮灰） */
@@ -464,7 +464,8 @@ body {
   will-change: transform, backdrop-filter;
 }
 .tabs[data-active="store"] .tab-indicator { transform: translateX(100%); }
-.tabs[data-active="settings"] .tab-indicator { transform: translateX(200%); }
+.tabs[data-active="hide"] .tab-indicator { transform: translateX(200%); }
+.tabs[data-active="settings"] .tab-indicator { transform: translateX(300%); }
 
 /* ---------- 面板 ----------
    入场只用 transform（panelIn 位移），不用 opacity：
@@ -971,6 +972,78 @@ body {
 }
 .hint-title { font-size: 15px; font-weight: 600; margin-bottom: 4px; }
 .hint-body { font-size: 13px; color: var(--text-secondary); line-height: 1.6; max-width: 300px; margin: 0 auto; }
+
+/* ---------- 深度隐藏：添加应用选择面板 ----------
+   复用公告弹窗的毛玻璃底 + 丝滑渐变模糊；内容为可搜索的已装应用列表，
+   每一项复用 .lib-card 行样式 + .mirror-radio 圆点，选中高亮，风格与全页一致。 */
+.hide-picker {
+  position: fixed; inset: 0; z-index: 85;
+  display: flex; align-items: flex-end; justify-content: center;
+  padding: 0; box-sizing: border-box;
+}
+.hide-picker[hidden] { display: none; }
+.hide-picker-backdrop {
+  position: absolute; inset: 0;
+  background: rgba(0, 0, 0, 0.34);
+  opacity: 0;
+  backdrop-filter: blur(0px);
+  -webkit-backdrop-filter: blur(0px);
+  transition:
+    opacity 0.4s var(--ease-out),
+    backdrop-filter 0.45s var(--ease-ios),
+    -webkit-backdrop-filter 0.45s var(--ease-ios);
+}
+.hide-picker.open .hide-picker-backdrop { opacity: 1; backdrop-filter: blur(22px) saturate(170%); -webkit-backdrop-filter: blur(22px) saturate(170%); }
+.hide-picker-card {
+  position: relative;
+  width: min(560px, 100%);
+  max-height: 78dvh;
+  display: flex; flex-direction: column;
+  padding: 22px 22px calc(20px + env(safe-area-inset-bottom, 0px));
+  border-radius: var(--r-card);
+  corner-shape: var(--radius-shape, squircle);
+  background: var(--card-bg-strong);
+  backdrop-filter: blur(30px) saturate(180%);
+  -webkit-backdrop-filter: blur(30px) saturate(180%);
+  border: 1px solid var(--card-border-fine);
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.4);
+  transform: translateY(24px);
+  opacity: 0;
+  transition:
+    transform 0.42s var(--ease-out),
+    opacity 0.42s var(--ease-out);
+}
+.hide-picker.open .hide-picker-card { transform: translateY(0); opacity: 1; }
+.hide-picker-head {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 12px;
+}
+.hide-picker-title { font-size: 17px; font-weight: 700; letter-spacing: -0.01em; }
+.hide-picker-list {
+  flex: 1; overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  display: flex; flex-direction: column; gap: 8px;
+  padding-right: 2px;
+}
+.hide-picker-list .lib-card { padding: 12px 14px; }
+.hide-picker-list .mirror-radio { flex: 0 0 20px; margin-left: auto; }
+.hide-picker-list .lib-card.active {
+  border-color: var(--accent);
+  box-shadow: var(--card-shadow), 0 0 0 1px var(--accent), 0 4px 16px var(--accent-glow);
+  background: color-mix(in srgb, var(--accent) 9%, var(--card-bg));
+}
+.hide-picker-list .lib-card.active .mirror-radio {
+  border-color: var(--accent);
+  background: var(--accent);
+  box-shadow: 0 0 0 4px var(--accent-soft);
+}
+.hide-picker-list .lib-card.active .mirror-radio::after {
+  content: ""; width: 7px; height: 7px; border-radius: 50%;
+  background: #fff; transform: scale(0);
+  animation: radioIn 0.3s var(--ease-out) forwards;
+}
+.hide-picker-foot { margin-top: 14px; }
+.hide-picker .btn-primary { margin-top: 12px; }
 
 /* ---------- 下载进度浮条（不遮挡屏幕，毛玻璃 toast 风格） ---------- */
 .dl-bar {

@@ -2095,5 +2095,50 @@
     "type": "termux",
     "pkg": "zsh",
     "core": false
+  },
+  {
+    "id": "android-tools",
+    "name": "Android 平台工具",
+    "desc": "adb/fastboot 及全套安卓镜像工具：simg2img 解压、img2simg 打包、lpmake/lpunpack 处理 super 分区、mkbootimg/unpack_bootimg/repack_bootimg 解包打包 boot 镜像、e2fsdroid/make_f2fs 生成 ext4/f2fs 镜像、avbtool 校验签名",
+    "category": "镜像工具",
+    "type": "termux",
+    "pkg": "android-tools",
+    "core": false
+  },
+  {
+    "id": "e2fsprogs",
+    "name": "e2fsprogs",
+    "desc": "ext4 文件系统工具：mke2fs/mkfs.ext4 制作 ext4 镜像、resize2fs 调整大小、e2fsck 修复、tune2fs 查看参数，配合 img2simg 打包安卓 system/vendor 镜像",
+    "category": "镜像工具",
+    "type": "termux",
+    "pkg": "e2fsprogs",
+    "core": false
+  },
+  {
+    "id": "abootimg",
+    "name": "abootimg",
+    "desc": "解包/打包 Android boot 镜像（boot.img）：提取内核与 ramdisk，修改内核命令行后重新打包",
+    "category": "镜像工具",
+    "type": "termux",
+    "pkg": "abootimg",
+    "core": false
+  },
+  {
+    "id": "mtools",
+    "name": "mtools",
+    "desc": "FAT/EXFAT 镜像读写工具（mcopy/mdir/mmd 等）：无需挂载即可在磁盘镜像里读写文件",
+    "category": "镜像工具",
+    "type": "termux",
+    "pkg": "mtools",
+    "core": false
+  },
+  {
+    "id": "parted",
+    "name": "Parted",
+    "desc": "磁盘/镜像分区工具：查看、创建、删除、调整分区，可用于处理安卓分区镜像与超级分区",
+    "category": "镜像工具",
+    "type": "termux",
+    "pkg": "parted",
+    "core": false
   }
 ]
