@@ -182,6 +182,7 @@ pub fn download(url: &str, dest: &str) -> Result<(), String> {
         }
     }
     let _ = std::fs::remove_file(dest);
+    let _ = std::fs::remove_file(&format!("{dest}.progress"));
     Err(format!("下载失败: {url}"))
 }
 
@@ -291,6 +292,12 @@ pub fn http_get(url: &str, dest: &str, timeout_secs: u64) -> Result<(), String> 
         let mut out = std::fs::File::create(dest).map_err(|e| e.to_string())?;
         let mut total: u64 = 0; // 已写出字节数
         let mut cursor = 0usize; // overflow 内已消费的字节数
+        // 进度文件（供 WebUI 显示真实下载百分比）：内容 "done total"，下载完删除
+        let progress_path = format!("{dest}.progress");
+        let mut last_pct: u32 = 0;
+        if let Some(len) = content_length {
+            let _ = std::fs::write(&progress_path, format!("0 {len}"));
+        }
         // 逐字节读取器：先消费 overflow，再读网络流
         let read_byte = |s: &mut TcpStream,
                          over: &[u8],
@@ -369,6 +376,12 @@ pub fn http_get(url: &str, dest: &str, timeout_secs: u64) -> Result<(), String> 
                 let take = ((len - total) as usize).min(n);
                 out.write_all(&buf[..take]).map_err(|e| e.to_string())?;
                 total += take as u64;
+                // 真实进度上报（每 ≥2% 变化写一次）
+                let pct = if len > 0 { ((total as f64 / len as f64) * 100.0) as u32 } else { 0 };
+                if pct >= last_pct + 2 || pct == 100 {
+                    let _ = std::fs::write(&progress_path, format!("{} {}", total, len));
+                    last_pct = pct;
+                }
                 if take < n {
                     break;
                 }
@@ -394,8 +407,10 @@ pub fn http_get(url: &str, dest: &str, timeout_secs: u64) -> Result<(), String> 
         drop(out);
         if total == 0 {
             let _ = std::fs::remove_file(dest);
+            let _ = std::fs::remove_file(&progress_path);
             return Err("下载内容为空".to_string());
         }
+        let _ = std::fs::remove_file(&progress_path);
         return Ok(());
     }
     Err("重定向次数过多".to_string())

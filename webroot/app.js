@@ -365,6 +365,24 @@ async function installLib(id) {
         throw new Error("安装超时（240 秒），请查看日志");
       }
       await sleep(1500);
+      // 真实进度：读 .deb 下载进度文件（libman 实时写入）+ 本次安装日志阶段，更新底部浮条
+      try {
+        const pf = await exec(`cat ${MOD}/libs/.cache/${id}.deb.progress 2>/dev/null`);
+        const pm = /^(\d+)\s+(\d+)/.exec((pf.stdout || "").trim());
+        if (pm && +pm[2] > 0) {
+          const pct = (+pm[1] / +pm[2]) * 100;
+          setDownloadProgress(pct, `正在下载 ${id}（${Math.round(pct)}%）`);
+        } else {
+          const tail = await exec(`tail -n 10 ${logPath} 2>/dev/null | grep -E '尝试镜像|已下载 \\.deb|已提取 data|安装完成|libman 错误' | tail -n 1`);
+          const line = (tail.stdout || "").trim();
+          let stage = "正在安装…";
+          if (/尝试镜像/.test(line)) stage = "正在连接镜像源…";
+          else if (/已下载 \.deb/.test(line)) stage = "下载完成，正在解包…";
+          else if (/已提取 data/.test(line)) stage = "正在解包…";
+          else if (/安装完成/.test(line)) stage = "写入完成，正在校验…";
+          setDownloadProgress(0, stage);
+        }
+      } catch (e) { /* 进度更新失败忽略 */ }
       const alive = pid
         ? await exec(`kill -0 ${pid} 2>/dev/null && echo YES || echo NO`)
         : await exec(`pgrep -f "libman install ${id}" >/dev/null 2>&1 && echo YES || echo NO`);
@@ -1116,10 +1134,15 @@ function setupReset() {
 function showOverlay(title, sub) {
   $("overlayTitle").textContent = title;
   $("overlaySub").textContent = sub;
-  // 真实百分比未知时用不确定光条，不再造假百分比
-  $("progressFill").classList.add("indeterminate");
-  $("progressFill").style.width = "";
+  $("progressFill").style.width = "0%"; // 真实进度，起始 0，不造假
   $("overlay").hidden = false;
+}
+/** 更新底部浮条的下载进度（pct 0-100）+ 阶段文字（真实进度，来自 libman 进度文件） */
+function setDownloadProgress(pct, text) {
+  if ($("overlay").hidden) return;
+  const p = Math.max(0, Math.min(100, Math.round(pct)));
+  $("progressFill").style.width = p + "%";
+  if (text) $("overlaySub").textContent = text;
 }
 function hideOverlay() {
   $("overlay").hidden = true;

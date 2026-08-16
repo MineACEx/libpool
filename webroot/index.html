@@ -315,13 +315,13 @@
   </div>
 
   <!-- 下载进度遮罩 -->
-  <div class="overlay" id="overlay" hidden>
-    <div class="glass-card overlay-card">
-      <div class="overlay-title" id="overlayTitle">下载中…</div>
-      <div class="progress-track"><div class="progress-fill indeterminate" id="progressFill"></div></div>
-      <div class="overlay-sub" id="overlaySub">请保持页面打开</div>
-      <button class="overlay-cancel" id="btnCancelDownload">取消下载</button>
+  <div class="dl-bar glass-card" id="overlay" hidden role="status" aria-live="polite">
+    <div class="dl-bar-info">
+      <div class="dl-bar-title" id="overlayTitle">正在安装…</div>
+      <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+      <div class="dl-bar-sub" id="overlaySub">准备中…</div>
     </div>
+    <button class="dl-bar-cancel ripple-host" id="btnCancelDownload">取消</button>
   </div>
 
   <!-- toast -->
