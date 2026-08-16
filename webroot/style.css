@@ -382,6 +382,7 @@ body {
 .brand-icon {
   position: relative;
   width: 88px; height: 88px;
+  margin-top: 6px;   /* 图标整体往下移动一点点 */
   display: block;
 }
 
