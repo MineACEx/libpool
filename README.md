@@ -9,7 +9,7 @@
   内置 KsuWebUI：233 个扩展库 · 亮暗主题 · 自定义背景 · 云更新 · Rust 原生低功耗
 </p>
 
-<p align="center">[English](https://github.com/MineACEx/libpool/blob/master/README_EN.md) · 简体中文</p>
+<p align="center"><a href="https://github.com/MineACEx/libpool/blob/master/README_EN.md">English</a> · 简体中文</p>
 
 <p align="center">
   <a href="https://github.com/MineACEx/libpool/blob/master/LICENSE"><img src="https://img.shields.io/badge/License-Apache--2.0-blue.svg" alt="License" /></a>

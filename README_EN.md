@@ -9,7 +9,7 @@
   Ships KsuWebUI: 233 libraries · light/dark theme · custom wallpaper · cloud update · Rust native, low power
 </p>
 
-<p align="center">English · [简体中文](https://github.com/MineACEx/libpool/blob/master/README.md)</p>
+<p align="center">English · <a href="https://github.com/MineACEx/libpool/blob/master/README.md">简体中文</a></p>
 
 <p align="center">
   <a href="https://github.com/MineACEx/libpool/blob/master/LICENSE"><img src="https://img.shields.io/badge/License-Apache--2.0-blue.svg" alt="License" /></a>
