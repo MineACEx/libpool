@@ -3,4 +3,4 @@ name=LibPool · 库池
 version=1.0.0
 versionCode=100
 author=MINO · Himer (MineACE)
-description=补齐 Android 缺失的常用/热门库并挂载到 /system/bin。内置 KsuWebUI：322+ 扩展库、亮暗主题、自定义背景、G2 圆角触摸动效。Rust 原生低功耗、无常驻进程；32 位设备自动兼容。Apache-2.0。
+description=补齐 Android 缺失的常用/热门库并挂载到 /system/bin。内置 KsuWebUI：233 扩展库、亮暗主题、自定义背景、G2 圆角触摸动效、按应用深度隐藏 root。Rust 原生低功耗、无常驻进程；挂载即时生效无需重启，系统已有库绝不覆盖；32 位设备自动兼容。Apache-2.0。

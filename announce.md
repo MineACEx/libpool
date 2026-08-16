@@ -6,7 +6,8 @@
 
 - **233 个扩展库**，10 大分类：adb / fastboot、curl、git、htop、strace、tmux、rsync、jq、ffmpeg、nodejs、go、python 等，一键下载
 - **18 个核心库** 开机自动就位，开箱即用
-- **标准 magic mount**：库文件写入模块 system/ 目录，由 Magisk / KernelSU / APatch 开机叠加到 /system，新增命令开箱即用；系统已有同名命令则 bind mount 即时覆盖
+- **标准 magic mount**：库文件写入模块 system/ 目录，由 Magisk / KernelSU / APatch 开机叠加到 /system，新增命令开箱即用；系统已有同名命令则 bind mount 即时覆盖。挂载即时生效无需重启，系统已有库绝不覆盖
+- **按应用深度隐藏 root**：在「深度隐藏」页添加手机里已装的应用（真实图标），加进 KernelSU denylist 彻底隐藏 su 痕迹，开关即时生效
 - **低功耗**：核心逻辑用 Rust 原生二进制实现，无守护进程、无后台常驻，空闲占用趋近 0
 
 ## 怎么用

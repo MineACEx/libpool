@@ -35,11 +35,15 @@ Supports: **Magisk** / **KernelSU** / **APatch**, including **32-bit (armv7)** d
 - **18 built-in core libraries** (curl / git / tar / unzip / awk …) auto-installed at boot
 - **Always latest**: libraries are resolved and installed at the newest version from Termux official/mirror repos — no manual updating
 - **Standard magic mount**: library files are written into the module's `system/` directory and overlaid onto `/system` at boot by Magisk / KernelSU / APatch — new commands just work without writing to the read-only /system; existing system commands with the same name are instantly overridden via bind mount. Mounts are replayed automatically at boot
+- **Hot mount, no reboot needed**: `mount` / `unmount` use overlayfs hot mounting — libraries become usable right after the command runs; boot-time replay keeps your config after a reboot
+- **Never overwrite system libraries**: before mounting, it checks whether the same-named bin / lib already exists in `/system`; if so it skips and never touches system-native files
+- **Per-app root hiding**: add apps that detect root (banking, MOMO, Taobao…) to the KernelSU denylist to fully hide su traces at runtime — the toggle works immediately without rebooting; pick from your installed apps and real app icons are shown
 - **Slim freely**: delete any library you don't want to free space
 - **Low power, zero resident**: the manager is a static Rust binary that runs only during install/mount and exits — near-zero idle footprint
 - **32-bit compatible**: armv7 devices automatically use the 32-bit native binary; other architectures fall back to a shell script
 - **Cloud update**: compares the local vs. cloud version number and shows an update dialog when a new version is found; the download link opens your default browser
 - **Beautiful WebUI**: iOS-18-style frosted glass + G2 continuous rounded corners, touch-first motion (ripple / press / interrupt / scroll reveal), light & dark themes, adjustable wallpaper blur, optimized for phones and tablets
+- **Unified logging**: all install / service / WebUI / tool logs are neatly stored in the module's `log/` folder for both concealment and safety, making troubleshooting easy
 
 ## What Rust Does
 
@@ -55,6 +59,8 @@ Supports: **Magisk** / **KernelSU** / **APatch**, including **32-bit (armv7)** d
 | `ensure-core` | Installs missing core libraries in the background | Runs in background, non-blocking |
 | `reset` | Uninstalls everything and clears state | Fault-tolerant cleanup |
 | `config` | Reads/writes mirror etc. configuration | Minimal JSON serialization |
+| `hide apply/restore` | Hides Magisk/root detection traces (bind-covers common detection paths) | One-shot, no resident process, fully reversible |
+| `hide apps` | Per-app deep hiding (scan installed apps / read & write list / write KernelSU denylist / replay at boot) | Tied into the WebUI, controlled privileges |
 
 **Why Rust instead of shell:** shell forks an interpreter for every operation, has fragile string handling, and error-prone JSON parsing; Rust compiles to a few-KB executable that starts in milliseconds, uses minimal memory, and never dies halfway from a script error. `tools/libman.sh` is kept only as a fallback for extreme environments (where the binary cannot execute).
 
@@ -74,6 +80,7 @@ Open **KernelSU Manager → Modules → LibPool → WebUI**:
 |------|-------------|
 | Mounted | See downloaded/mounted libraries; toggle and delete them |
 | Store | Browse 233 libraries, search, filter by category, one-tap download |
+| Deep Hide | Add apps installed on your phone (real icons) to the KernelSU denylist to fully hide root from banking / root-checking apps; toggles apply instantly |
 | Settings | Light/dark theme, custom wallpaper (URL or gallery) + wallpaper blur, download mirror, full reset |
 
 ### Announcement (optional)
@@ -142,6 +149,8 @@ libpool/
 │                          # Packaged into the module as .git/ where users can edit it
 ├── system/bin|lib         # Magic-mount targets
 ├── libs/<id>/bin|lib      # Actual library files (created after install)
+├── hide/apps.json         # Deep-hide app list (your chosen installed apps, real icons)
+├── log/                   # Unified log directory (libman / service / webui logs)
 ├── tools/
 │   ├── libman             # Rust native manager (aarch64)
 │   ├── libman-arm         # Rust native manager (armv7 32-bit)
