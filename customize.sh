@@ -13,8 +13,8 @@
 
 MODDIR=${0%/*}
 export LIBPOOL_DIR="$MODDIR"
-LOG="$MODDIR/install.log"
-mkdir -p "$MODDIR/logs" 2>/dev/null
+LOG="$MODDIR/log/install.log"
+mkdir -p "$MODDIR/log" 2>/dev/null
 ts() { date '+%Y-%m-%d %H:%M:%S'; }
 log() { echo "[$(ts)] $*" >> "$LOG" 2>/dev/null; }
 
@@ -88,7 +88,7 @@ done
 
 if [ -n "$BIN" ] && [ -x "$BIN" ] && [ "${BIN##*.}" != "sh" ]; then
   # 后台装 core 库，绝不阻塞安装
-  LIBPOOL_DIR="$MODDIR" nohup "$BIN" ensure-core >> "$MODDIR/install.log" 2>&1 &
+  LIBPOOL_DIR="$MODDIR" nohup "$BIN" ensure-core >> "$MODDIR/log/install.log" 2>&1 &
   log "已用 $BIN 后台安装核心库"
 elif [ -f "$MODDIR/tools/libman.sh" ]; then
   chmod 755 "$MODDIR/tools/libman.sh"

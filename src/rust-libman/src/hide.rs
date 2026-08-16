@@ -331,3 +331,27 @@ pub fn hide_apps_cmd(dir: &str, args: &[String]) -> Result<(), String> {
         None => Err("hide apps 需要子命令: scan / list / set <pkg> <on|off>".to_string()),
     }
 }
+
+/// 开机/执行 apply 时重放：把 apps.json 里「已启用」的包重新写进 KernelSU denylist。
+/// 幂等（denylist add 已存在包无副作用）；设备重启后保证深度隐藏配置不丢失。
+pub fn hide_apps_replay(dir: &str) -> Result<(), String> {
+    let list = apps_load(dir);
+    let enabled: Vec<String> = list
+        .iter()
+        .filter(|(_, on)| *on)
+        .map(|(p, _)| p.clone())
+        .collect();
+    if enabled.is_empty() {
+        return Ok(());
+    }
+    let mut ok = 0usize;
+    for p in &enabled {
+        let note = apply_denylist(p, true);
+        if note.contains("已通过") || note.contains("已直写") {
+            ok += 1;
+        }
+        util::log_file(dir, &format!("hide apps 重放 {p}: {note}"));
+    }
+    println!("深度隐藏重放: {ok}/{} 个已启用包已写回 denylist", enabled.len());
+    Ok(())
+}

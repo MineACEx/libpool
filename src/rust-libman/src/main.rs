@@ -221,6 +221,9 @@ fn apply_cmd(dir: &str) -> Result<(), String> {
         }
     }
     println!("apply 完成: 成功 {ok} 个, 失败 {fail} 个");
+    // 深度隐藏重放：把 hide/apps.json 里「已启用」的包重新写回 KernelSU denylist，
+    // 设备重启后深度隐藏配置不丢失（幂等，配合开机 service 调用 apply）。
+    hide::hide_apps_replay(dir)?;
     Ok(())
 }
 

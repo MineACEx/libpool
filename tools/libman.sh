@@ -41,10 +41,10 @@ MODDIR=${LIBPOOL_DIR:-/data/adb/modules/libpool}
 # 版本号，与 Rust 版保持一致
 VERSION="1.0.0"
 
-# 运行日志（logs/libman.log），配合 WebUI「关于 → 查看日志」排查安装/下载/挂载失败。
+# 运行日志（log/libman.log），配合 WebUI「关于 → 查看日志」排查安装/下载/挂载失败。
 # 记录每次命令调用与错误，best-effort，写失败不影响功能。
-LMAN_LOG="$MODDIR/logs/libman.log"
-mkdir -p "$MODDIR/logs" 2>/dev/null || true
+LMAN_LOG="$MODDIR/log/libman.log"
+mkdir -p "$MODDIR/log" 2>/dev/null || true
 logfile() {
     echo "[$(date '+%Y-%m-%d %H:%M:%S')] libman.sh: $*" >> "$LMAN_LOG" 2>/dev/null || true
 }
@@ -470,10 +470,9 @@ bind_mount() {
     return 0
 }
 
-# 挂载指定库：将 libs/<id>/bin/* 绑定到 /system/bin/，
-#          将 libs/<id>/lib/* 绑定到 /system/lib/（lib 失败不致命）
-# 安全红线：若系统里已有同名 bin/so，一律跳过、绝不覆盖（对应 Rust 版 copy_if_safe）。
-# 对应 Rust 版 mount_lib
+# 挂载指定库：无需重启即时生效（bind mount）+ 开机持续（复制进模块 system/，
+# 交 Magisk/KernelSU 自带 magic-mount 叠加）。系统已有同名 bin/so 一律跳过、绝不覆盖。
+# 对应 Rust 版 mount_lib / mount_lib_hot
 # 用法: mount_lib <id>
 mount_lib() {
     local id="$1"
@@ -481,6 +480,10 @@ mount_lib() {
     local bin_dir="$lib_root/bin"
     local lib_dir="$lib_root/lib"
     local name
+    # 模块 system/ 目录（magic-mount 源：host 开机自动叠加到 /system）
+    local sys_bin="$MODDIR/system/bin"
+    local sys_lib="$MODDIR/system/lib"
+    mkdir -p "$sys_bin" "$sys_lib" 2>/dev/null || true
     # 挂载 bin 目录下所有条目
     if [ -d "$bin_dir" ]; then
         local old_ifs="$IFS"
@@ -495,7 +498,11 @@ mount_lib() {
 '
                 continue
             fi
+            # 即时生效：bind 当前库文件（无需重启）
             bind_mount "$bin_dir/$name" "/system/bin/$name" || true
+            # 开机延续：复制进模块 system/，host 自带 magic-mount 重启也保持（不覆盖系统同名）
+            cp -f "$bin_dir/$name" "$sys_bin/$name" 2>/dev/null || true
+            chmod 755 "$sys_bin/$name" 2>/dev/null || true
             IFS='
 '
         done
@@ -516,16 +523,19 @@ mount_lib() {
                 continue
             fi
             bind_mount "$lib_dir/$name" "/system/lib/$name" 2>/dev/null || true
+            cp -f "$lib_dir/$name" "$sys_lib/$name" 2>/dev/null || true
+            chmod 755 "$sys_lib/$name" 2>/dev/null || true
             IFS='
 '
         done
         IFS="$old_ifs2"
     fi
-    echo "已挂载: $id"
+    echo "已挂载并即时生效: $id"
     return 0
 }
 
-# 卸载指定库的所有 bind mount（读取 meta.json 的 bins / libs）
+# 卸载指定库的所有 bind mount + 清理模块 system/ 里持久化的副本
+# （读取 meta.json 的 bins / libs），保证重启后 magic-mount 不再叠加。
 # 对应 Rust 版 unmount_lib_by_id
 # 用法: unmount_lib <id>
 unmount_lib() {
@@ -537,23 +547,25 @@ unmount_lib() {
     local bins libs
     bins=$(get_meta "$id" "bins" "")
     libs=$(get_meta "$id" "libs" "")
-    # 卸载 bin
+    # 卸载 bin 并清理模块 system/bin 副本
     local old_ifs="$IFS"
     IFS=','
     for b in $bins; do
         IFS="$old_ifs"
         [ -n "$b" ] || continue
         umount "/system/bin/$b" 2>/dev/null || true
+        rm -f "$MODDIR/system/bin/$b" 2>/dev/null || true
         IFS=','
     done
     IFS="$old_ifs"
-    # 卸载 lib
+    # 卸载 lib 并清理模块 system/lib 副本
     old_ifs="$IFS"
     IFS=','
     for l in $libs; do
         IFS="$old_ifs"
         [ -n "$l" ] || continue
         umount "/system/lib/$l" 2>/dev/null || true
+        rm -f "$MODDIR/system/lib/$l" 2>/dev/null || true
         IFS=','
     done
     IFS="$old_ifs"
@@ -1479,6 +1491,9 @@ cmd_apply() {
     done
     IFS="$old_ifs"
     echo "apply 完成: 成功 $ok 个, 失败 $fail 个"
+    # 深度隐藏重放：把 hide/apps.json 里「已启用」的包重新写回 KernelSU denylist，
+    # 设备重启后深度隐藏配置不丢失（幂等，配合开机 service 调用 apply）。
+    cmd_hide_apps_replay
     return 0
 }
 
@@ -1648,6 +1663,226 @@ cmd_hide_status() {
     return 0
 }
 
+# -----------------------------------------------------------------------------
+# hide apps：按应用深度隐藏（对应 Rust 版 hide.rs 的 hide_apps_*）
+# 配置存 hide/apps.json：{ "apps": [ {"pkg": "...", "enabled": true} ] }
+# 启用/关闭时写 KernelSU denylist（优先 ksud，无则直写 denylist 文件）
+# -----------------------------------------------------------------------------
+HIDE_APPS="$MODDIR/hide/apps.json"
+KSU_DENYLIST_FILE="/data/adb/ksu/denylist"
+
+# 对某包启用/关闭 KernelSU denylist（返回说明文本，失败也如实返回）
+ksu_denylist_set() {
+    local pkg="$1" on="$2" verb="add"
+    [ "$on" = "true" ] || [ "$on" = "on" ] || [ "$on" = "1" ] || verb="rm"
+    # 1) 优先用 ksud / ksu 命令
+    local k
+    for k in /data/adb/ksu/bin/ksud /data/adb/ksu/bin/ksu /data/adb/modules/zygisk_next/bin/ksud; do
+        if [ -x "$k" ]; then
+            if "$k" denylist "$verb" "$pkg" 2>/dev/null; then
+                echo "已通过 $k 把 $pkg $verb 进 denylist"
+                return 0
+            fi
+            echo "$k 执行失败"
+            return 1
+        fi
+    done
+    # 2) 回退：直写 denylist 文件（每行一个包名；启用追加、关闭剔除）
+    local tmp
+    tmp=$(mktemp 2>/dev/null || echo "/data/local/tmp/ksu.denylist.tmp")
+    : > "$tmp" 2>/dev/null
+    if [ "$verb" = "add" ]; then
+        if [ -f "$KSU_DENYLIST_FILE" ]; then
+            grep -vx "$pkg" "$KSU_DENYLIST_FILE" 2>/dev/null >> "$tmp" || true
+        fi
+        echo "$pkg" >> "$tmp"
+    else
+        if [ -f "$KSU_DENYLIST_FILE" ]; then
+            grep -vx "$pkg" "$KSU_DENYLIST_FILE" 2>/dev/null >> "$tmp" || true
+        fi
+    fi
+    mkdir -p "${KSU_DENYLIST_FILE%/*}" 2>/dev/null || true
+    if cp "$tmp" "$KSU_DENYLIST_FILE" 2>/dev/null; then
+        rm -f "$tmp" 2>/dev/null
+        echo "已直写 $KSU_DENYLIST_FILE：$pkg $verb"
+        return 0
+    fi
+    rm -f "$tmp" 2>/dev/null
+    echo "写入 $KSU_DENYLIST_FILE 失败"
+    return 1
+}
+
+# 读 hide/apps.json → 每行输出 "pkg enabled"
+hide_apps_rows() {
+    [ -f "$HIDE_APPS" ] || return 0
+    local obj pkg enabled
+    # grep -oE 逐对象提取（比 sed '\n' 替换更可移植，toybox 兼容）
+    grep -oE '\{[^{}]*\}' "$HIDE_APPS" 2>/dev/null | while IFS= read -r obj; do
+        pkg=$(printf '%s' "$obj" | sed -n 's/.*"pkg"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p')
+        enabled=$(printf '%s' "$obj" | sed -n 's/.*"enabled"[[:space:]]*:[[:space:]]*\(true\|false\).*/\1/p')
+        [ -n "$pkg" ] || continue
+        [ -n "$enabled" ] || enabled="false"
+        echo "$pkg $enabled"
+    done
+}
+
+# hide apps scan：列出已装三方应用（JSON 数组）
+cmd_hide_apps_scan() {
+    local pkgs
+    pkgs=$(pm list packages -3 2>/dev/null | sed 's/^package://' | sed '/^$/d' | sort -u)
+    if [ -z "$pkgs" ]; then
+        err "无法列出已装应用（pm 不可用或为空）"
+        return 1
+    fi
+    echo "["
+    local first=1 p
+    for p in $pkgs; do
+        if [ "$first" -eq 1 ]; then first=0; else echo ","; fi
+        printf '  "%s"' "$p"
+    done
+    echo ""
+    echo "]"
+    log "hide apps scan: $(echo "$pkgs" | wc -l) 个三方应用"
+    return 0
+}
+
+# hide apps list：列出深度隐藏配置（JSON 数组）
+cmd_hide_apps_list() {
+    local rows pkg enabled first=1
+    echo "["
+    while IFS=' ' read -r pkg enabled; do
+        [ -n "$pkg" ] || continue
+        if [ "$first" -eq 1 ]; then first=0; else echo ","; fi
+        printf '  {"pkg":"%s","enabled":%s}' "$pkg" "$enabled"
+    done <<EOF
+$(hide_apps_rows)
+EOF
+    echo ""
+    echo "]"
+    return 0
+}
+
+# hide apps status：概览
+cmd_hide_apps_status() {
+    local n=0 enabled=0 pkg st
+    while IFS=' ' read -r pkg st; do
+        [ -n "$pkg" ] || continue
+        n=$((n + 1))
+        [ "$st" = "true" ] && enabled=$((enabled + 1))
+    done <<EOF
+$(hide_apps_rows)
+EOF
+    echo "{ \"apps\": $n, \"enabled\": $enabled }"
+    return 0
+}
+
+# hide apps set <pkg> <on|off>：启用/关闭某应用深度隐藏
+cmd_hide_apps_set() {
+    local pkg="$1" on="$2"
+    if [ -z "$pkg" ] || [ -z "$on" ]; then
+        err "用法: libman hide apps set <pkg> <on|off>"
+        return 1
+    fi
+    case "$on" in
+        on|true|1) on=true ;;
+        off|false|0) on=false ;;
+        *) err "on/off 取值无效: $on"; return 1 ;;
+    esac
+    # 读取现有配置，重写
+    local tmp rows pkg0 st0 found=0
+    tmp=$(mktemp 2>/dev/null || echo "$MODDIR/hide/apps.json.tmp")
+    mkdir -p "$MODDIR/hide" 2>/dev/null || true
+    : > "$tmp"
+    echo "{"
+    echo "  \"apps\": ["
+    local first=1
+    while IFS=' ' read -r pkg0 st0; do
+        [ -n "$pkg0" ] || continue
+        if [ "$first" -eq 1 ]; then first=0; else echo ","; fi
+        if [ "$pkg0" = "$pkg" ]; then
+            printf '    { "pkg": "%s", "enabled": %s }' "$pkg" "$on"
+            found=1
+        else
+            printf '    { "pkg": "%s", "enabled": %s }' "$pkg0" "$st0"
+        fi
+    done <<EOF
+$(hide_apps_rows)
+EOF
+    if [ "$found" -eq 0 ]; then
+        if [ "$first" -eq 1 ]; then first=0; else echo ","; fi
+        printf '    { "pkg": "%s", "enabled": %s }' "$pkg" "$on"
+    fi
+    echo ""
+    echo "  ]"
+    echo "}"
+    if cp "$tmp" "$HIDE_APPS" 2>/dev/null; then
+        rm -f "$tmp" 2>/dev/null
+    else
+        rm -f "$tmp" 2>/dev/null
+        err "写入 $HIDE_APPS 失败"
+        return 1
+    fi
+    # 立即写 KernelSU denylist
+    local note
+    note=$(ksu_denylist_set "$pkg" "$on")
+    log "hide apps set $pkg $on：$note"
+    echo "$pkg 深度隐藏已$([ "$on" = "true" ] && echo 启用 || echo 关闭)。$note"
+    return 0
+}
+
+# hide apps replay：重放已启用包的 denylist（apply / 开机用）
+cmd_hide_apps_replay() {
+    local ok=0 total=0 pkg st note
+    while IFS=' ' read -r pkg st; do
+        [ -n "$pkg" ] || continue
+        [ "$st" = "true" ] || continue
+        total=$((total + 1))
+        note=$(ksu_denylist_set "$pkg" true)
+        case "$note" in
+            已通过*|已直写*) ok=$((ok + 1)) ;;
+        esac
+        log "hide apps 重放 $pkg：$note"
+    done <<EOF
+$(hide_apps_rows)
+EOF
+    if [ "$total" -gt 0 ]; then
+        echo "深度隐藏重放: $ok/$total 个已启用包已写回 denylist"
+    fi
+    return 0
+}
+
+# hide 主分发：apply / restore / status / apps（剩余参数透传）
+cmd_hide() {
+    local sub="$1"
+    shift 2>/dev/null || true
+    case "$sub" in
+        apply)        cmd_hide_apply ;;
+        restore)      cmd_hide_restore ;;
+        status)       cmd_hide_status ;;
+        apps)         cmd_hide_apps "$@" ;;
+        *)
+            err "未知 hide 子命令: ${sub:-<空>}（可用: apply / restore / status / apps）"
+            return 1
+            ;;
+    esac
+}
+
+# hide apps 子分发：scan / list / status / set <pkg> <on|off>（剩余参数透传）
+cmd_hide_apps() {
+    local sub="$1"
+    shift 2>/dev/null || true
+    case "$sub" in
+        scan)   cmd_hide_apps_scan ;;
+        list)   cmd_hide_apps_list ;;
+        status) cmd_hide_apps_status ;;
+        set|sel) cmd_hide_apps_set "$@" ;;
+        *)
+            err "未知 hide apps 子命令: ${sub:-<空>}（可用: scan / list / set <pkg> <on|off>）"
+            return 1
+            ;;
+    esac
+}
+
 # help：打印用法
 cmd_help() {
     cat <<'EOF'
@@ -1667,6 +1902,10 @@ cmd_help() {
   hide apply          隐藏 Magisk/root 检测痕迹（bind 覆盖，一次性无驻留）
   hide restore        还原 hide 覆盖
   hide status         查看当前隐藏状态
+  hide apps scan      扫描已安装的三方应用（JSON）
+  hide apps list      列出深度隐藏配置（JSON）
+  hide apps set <pkg> <on|off>  启用/关闭某应用的深度隐藏
+  hide apps status    深度隐藏概览
   config <key> <val>  读取/设置配置（如 mirror）
   version             打印版本
 EOF
@@ -1693,6 +1932,7 @@ case "$CMD" in
     ensure-core)  cmd_ensure_core ;;
     reset)        cmd_reset ;;
     config)       cmd_config "$1" "$2" ;;
+    hide)         cmd_hide "$@" ;;
     version)      cmd_version ;;
     help|--help|-h) cmd_help ;;
     "")

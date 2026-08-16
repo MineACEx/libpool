@@ -14,8 +14,8 @@
 
 MODDIR=${0%/*}
 export LIBPOOL_DIR="$MODDIR"
-LOG="$MODDIR/service.log"
-mkdir -p "$MODDIR/logs" 2>/dev/null
+LOG="$MODDIR/log/service.log"
+mkdir -p "$MODDIR/log" 2>/dev/null
 ts() { date '+%Y-%m-%d %H:%M:%S'; }
 log() { echo "[$(ts)] $*" >> "$LOG" 2>/dev/null; }
 

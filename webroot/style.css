@@ -545,6 +545,13 @@ body {
   box-shadow: 0 4px 12px var(--accent-glow);
   text-transform: uppercase;
 }
+/* 真实应用图标：img 填满图标框（squircle 圆角已由 .lib-icon 的 overflow 裁剪）；
+   加载失败时保留默认渐变底 + 首字母（onerror 移除 img 后回落） */
+.lib-icon img {
+  width: 100%; height: 100%;
+  object-fit: cover;
+  display: block;
+}
 /* 扩展库网格内小一号的图标：同样强制 1:1 */
 .store-head .lib-icon {
   width: 36px; height: 36px;

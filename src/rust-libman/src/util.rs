@@ -6,10 +6,10 @@ use std::process::{Command, Stdio};
 
 use crate::json::{self, Json};
 
-/// 把一行追加到模块日志 logs/libman.log（best-effort，写失败不影响功能）。
+/// 把一行追加到模块日志 log/libman.log（best-effort，写失败不影响功能）。
 /// 与 libman.sh 共用同一个日志文件，WebUI「设置 → 查看日志」可读。
 pub fn log_file(dir: &str, msg: &str) {
-    let path = format!("{dir}/logs/libman.log");
+    let path = format!("{dir}/log/libman.log");
     if let Some(parent) = std::path::Path::new(&path).parent() {
         let _ = std::fs::create_dir_all(parent);
     }

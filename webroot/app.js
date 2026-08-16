@@ -16,6 +16,7 @@
 
 import {
   exec, toast, moduleInfo, fullScreen, enableEdgeToEdge,
+  listPackages, getPackagesInfo,
 } from "./kernelsu.js";
 
 /* ---------------- 全局状态 ---------------- */
@@ -28,6 +29,7 @@ const state = {
   mirror: "",
   inPreview: false,
   cancelRequested: false, // 下载取消标记
+  appInfo: {},        // 已装应用信息: pkg -> { appLabel, appIcon, ... }（真实图标/名称）
 };
 
 /* 公告网址（指向本仓库 announce.md，内容为 Markdown，每天最多弹一次）。
@@ -85,7 +87,7 @@ async function normalizeModule() {
     zip 由 Windows 打包时通常不带 Unix +x 位，管理器解压后 tools/* 全是 644，
     test -x 会把 libman 误判成"管理工具未就绪"（服务/预检/诊断三处都报不可执行，
     但用 sh 直接跑其实正常）。WebUI 的 exec 以 root 运行，这里先强制 chmod 755。
-    之后原生优先（Rust 版 libman 已带完整日志 logs/libman.log），缺失再回退 shell 兜底。 */
+    之后原生优先（Rust 版 libman 已带完整日志 log/libman.log），缺失再回退 shell 兜底。 */
 async function ensureToolsExec() {
   if (state.inPreview || !MOD) return;
   try {
@@ -297,20 +299,55 @@ function storeCardHTML(r, i, animate = true) {
 /* ---------------- 渲染：深度隐藏（hide apps） ----------------
    按应用隐藏 root = 把包名加进 KernelSU 的 denylist（libman hide apps 系列命令）。
    hideList 渲染已配置的应用行（毛玻璃 + 开关，复用 .lib-card/.switch）；
-   「添加应用」弹出 hidePicker 底部面板，可搜索已装三方应用并选中追加。 */
+   「添加应用」弹出 hidePicker 底部面板，可搜索已装三方应用并选中追加。
+   真实图标/名称：用 KernelSU 桥的 getPackagesInfo() 读取已装应用的 appIcon（base64）
+   与 appLabel，图标加载失败时回退到首字母占位（不暴露假数据）。 */
 const hideListEl = $("hideList");
 const hidePickerEl = $("hidePicker");
 const hidePickerListEl = $("hidePickerList");
 const hidePickerDoneEl = $("btnHidePickerDone");
 const hidePickerAddEl = $("btnHideAdd");
 
+/** 把 KernelSU 的应用信息填成 { pkg -> {label, src} } 映射，便于直接取图标/名称。
+    getPackagesInfo 返回数组，每项含 packageName / appLabel / appIcon(base64 或 data URI)。
+    best-effort：桥不可用或失败时返回空映射，调用方回退到首字母。 */
+async function enrichAppInfo(pkgs) {
+  const map = {};
+  if (state.inPreview || !pkgs || !pkgs.length) return map;
+  try {
+    const info = getPackagesInfo(pkgs);
+    if (Array.isArray(info)) {
+      for (const it of info) {
+        const p = it.packageName || it.pkg || it.package || "";
+        if (!p) continue;
+        const l = it.appLabel || it.label || "";
+        let s = it.appIcon || it.icon || "";
+        if (s && !/^data:image\//i.test(s)) s = "data:image/png;base64," + s; // 裸 base64 补前缀
+        map[p] = { label: l, src: s };
+      }
+    }
+  } catch (e) { logWebui("getPackagesInfo 读取应用信息失败: " + e.message); }
+  return map;
+}
+
+/** 图标 HTML：有真实图标用 <img>（填满 squircle，失败 onerror 回退首字母）；
+    无图标则显示包名首字母（保持现有渐变底占位）。 */
+function appIconHtml(pkg, info) {
+  const fallback = escapeHtml((pkg || "?")[0].toUpperCase());
+  if (info && info.src) {
+    return `<span class="lib-icon"><img src="${escapeHtml(info.src)}" alt="" onerror="this.remove()" /><span style="position:absolute;opacity:0">${fallback}</span></span>`;
+  }
+  return `<span class="lib-icon">${fallback}</span>`;
+}
+
 async function loadHideConfig() {
   if (state.inPreview) {
-    // 预览模式：给出一组可交互的示例
+    // 预览模式：给出一组可交互的示例（无真实图标，回退首字母）
     state.installedPkgs = [
       "com.example.bank", "com.taobao.taobao", "com.sina.weibo",
       "com.tencent.mm", "com.alipay.android", "com.momloir.momo",
     ];
+    state.appInfo = {};
     state.hideApps = [
       { pkg: "com.example.bank", enabled: true },
       { pkg: "com.taobao.taobao", enabled: true },
@@ -327,6 +364,9 @@ async function loadHideConfig() {
     const arr = JSON.parse(cfg);
     if (Array.isArray(arr)) state.hideApps = arr.map((x) => ({ pkg: x.pkg, enabled: !!x.enabled }));
   } catch (e) { logWebui("hide apps list 失败: " + e.message); }
+  // 读取已配置应用 + 全部已装三方应用的真实图标/名称（KernelSU 桥，失败不阻断）
+  const need = [...(state.installedPkgs || []), ...state.hideApps.map((x) => x.pkg)];
+  state.appInfo = await enrichAppInfo([...new Set(need)]);
 }
 
 function renderHide() {
@@ -337,18 +377,22 @@ function renderHide() {
   }
   $("hideEmpty").hidden = true;
   hideListEl.innerHTML = state.hideApps
-    .map((a, i) => `
+    .map((a, i) => {
+      const info = state.appInfo[a.pkg];
+      const label = (info && info.label) || a.pkg;
+      return `
       <div class="lib-card reveal in" style="--i:${Math.min(i, 12)}">
-        <div class="lib-icon">${escapeHtml((a.pkg || "?")[0].toUpperCase())}</div>
+        ${appIconHtml(a.pkg, info)}
         <div class="lib-body">
           <div class="lib-name">
-            <span style="font-family:ui-monospace,'SF Mono',monospace;font-size:13.5px">${escapeHtml(a.pkg)}</span>
+            <span>${escapeHtml(label)}</span>
             ${a.enabled ? '<span class="lib-ver" style="color:var(--green)">已隐藏</span>' : ""}
           </div>
-          <div class="lib-desc">${a.enabled ? "该应用运行时看不到你的 root 环境" : "已加入列表，未启用"}</div>
+          <div class="lib-desc"><span style="font-family:ui-monospace,'SF Mono',monospace;font-size:12px">${escapeHtml(a.pkg)}</span>${a.enabled ? " · 运行时看不到你的 root 环境" : " · 已加入列表，未启用"}</div>
         </div>
         <button class="switch ${a.enabled ? "on" : ""}" data-pkg="${a.pkg}" data-on="${a.enabled}" role="switch" aria-checked="${a.enabled}" aria-label="隐藏 ${a.pkg}"></button>
-      </div>`)
+      </div>`;
+    })
     .join("");
 
   hideListEl.querySelectorAll(".switch").forEach((sw) => {
@@ -375,14 +419,19 @@ function openHidePicker() {
   const already = new Set(state.hideApps.map((a) => a.pkg));
   const candidates = (state.installedPkgs || []).filter((p) => !already.has(p));
   hidePickerListEl.innerHTML = candidates.length
-    ? candidates.map((p) => `
+    ? candidates.map((p) => {
+        const info = state.appInfo[p];
+        const label = (info && info.label) || p;
+        return `
         <div class="lib-card reveal in" data-pkg="${escapeHtml(p)}">
-          <div class="lib-icon">${escapeHtml((p || "?")[0].toUpperCase())}</div>
+          ${appIconHtml(p, info)}
           <div class="lib-body">
-            <div class="lib-name" style="font-family:ui-monospace,'SF Mono',monospace;font-size:13.5px">${escapeHtml(p)}</div>
+            <div class="lib-name">${escapeHtml(label)}</div>
+            <div class="lib-desc"><span style="font-family:ui-monospace,'SF Mono',monospace;font-size:12px">${escapeHtml(p)}</span></div>
           </div>
           <span class="mirror-radio"></span>
-        </div>`).join("")
+        </div>`;
+      }).join("")
     : '<div class="hint-card" style="border:none"><div class="hint-title">没有可添加的应用</div><div class="hint-body">已装应用都已加入列表，或在预览模式下。</div></div>';
   hidePickerListEl.querySelectorAll(".lib-card").forEach((row) => {
     row.addEventListener("click", () => row.classList.toggle("active"));
@@ -472,9 +521,9 @@ async function installLib(id) {
     // 会把 WebUI 主线程卡死（曾出现点下载后整页卡死）。轮询用 kill -0 / cat 等毫秒级命令，无感。
     const tool = useNative ? `${MOD}/tools/libman` : `sh ${MOD}/tools/libman.sh`;
     const cmd = `LIBPOOL_DIR=${MOD} ${tool} install ${id}`;
-    const pidPath = `${MOD}/logs/.install-${id}.pid`;
-    const logPath = `${MOD}/logs/install-${id}.log`;
-    await exec(`mkdir -p ${MOD}/logs; rm -f ${pidPath} ${logPath}; nohup sh -c '${cmd}' > ${logPath} 2>&1 & echo $! > ${pidPath}`);
+    const pidPath = `${MOD}/log/.install-${id}.pid`;
+    const logPath = `${MOD}/log/install-${id}.log`;
+    await exec(`mkdir -p ${MOD}/log; rm -f ${pidPath} ${logPath}; nohup sh -c '${cmd}' > ${logPath} 2>&1 & echo $! > ${pidPath}`);
 
     // 轮询后台进程是否结束（每 1.5s 一次，超时 240 秒）
     let pid = ((await exec(`cat ${pidPath} 2>/dev/null`)).stdout || "").trim();
@@ -544,7 +593,7 @@ async function verifyInstall(id) {
     logWebui(`安装产物(${id}):\n${ls.stdout || ""}`);
     const has = await exec(`find ${MOD}/libs/${id}/bin ${MOD}/libs/${id}/lib -type f 2>/dev/null | head -n 1`);
     if (!(has.stdout || "").trim()) {
-      logWebui(`警告: ${id} 安装后 bin/lib 为空，可能下载/解压失败，详见 logs/libman.log`);
+      logWebui(`警告: ${id} 安装后 bin/lib 为空，可能下载/解压失败，详见 log/libman.log`);
       showToast("下载完成，但 bin/lib 为空，请查日志", true);
     }
   } catch (e) { /* ignore */ }
@@ -1432,12 +1481,12 @@ function setupGpu() {
 }
 
 /* ---------------- 日志系统（模块自诊断） ----------------
-   日志文件：
-     install.log    安装脚本（customize.sh）
-     service.log    开机服务（service.sh）
-     logs/webui.log  WebUI 运行诊断（启动/工具预检/操作/公告）
-     logs/libman.log libman 工具运行日志（命令调用与错误）
-     logs/diagnose.log  实时运行诊断快照
+   全部日志统一放在模块目录 /log/ 文件夹下（整齐、安全、防打卡检测可一键清理）：
+     log/install.log   安装脚本（customize.sh）
+     log/service.log   开机服务（service.sh）
+     log/webui.log     WebUI 运行诊断（启动/工具预检/操作/公告）
+     log/libman.log    libman 工具运行日志（命令调用与错误）
+     log/diagnose.log  实时运行诊断快照
    写入用 exec 追加（best-effort，失败不影响界面）；「设置 → 查看日志」可读全部日志。
    日志查看器置顶展示实时诊断（架构 / tools 目录权限 / 各工具是否可执行），
    直接定位"管理工具未就绪"的根因（缺失？权限？反斜杠遗留？）。 */
@@ -1447,17 +1496,17 @@ async function appendToLog(file, text) {
   if (state.inPreview || !MOD) return;
   try {
     const safe = String(text).replace(/'/g, "'\\''");
-    await exec(`mkdir -p ${MOD}/logs; printf '%s\n' '${safe}' >> ${MOD}/${file}`);
+    await exec(`mkdir -p ${MOD}/log; printf '%s\n' '${safe}' >> ${MOD}/log/${file}`);
   } catch (e) { /* 日志失败忽略 */ }
 }
 
 async function logWebui(msg) {
   const t = new Date().toLocaleString("zh-CN", { hour12: false });
-  await appendToLog("logs/webui.log", `[${t}] ${msg}`);
+  await appendToLog("webui.log", `[${t}] ${msg}`);
 }
 
 /** 实时运行诊断：探测架构、tools 目录、各候选工具可执行性、libman 版本。
-    结果写入 logs/diagnose.log 并返回文本（日志查看器置顶显示）。 */
+    结果写入 log/diagnose.log 并返回文本（日志查看器置顶显示）。 */
 async function runDiagnostics() {
   if (state.inPreview || !MOD) return "（预览模式，无设备诊断）\n";
   try {
@@ -1473,7 +1522,7 @@ async function runDiagnostics() {
       `{ test -x ${MOD}/tools/libman && ${MOD}/tools/libman version 2>&1; } || echo 'libman 无法运行'`
     );
     const diag = `===== 运行诊断 =====\n${(r.stdout || "").trim()}\n\n`;
-    await appendToLog("logs/diagnose.log", diag);
+    await appendToLog("diagnose.log", diag);
     return diag;
   } catch (e) {
     return "";
@@ -1481,7 +1530,7 @@ async function runDiagnostics() {
 }
 
 async function openLogViewer() {
-  const files = ["install.log", "service.log", "logs/webui.log", "logs/libman.log", "logs/diagnose.log"];
+  const files = ["log/install.log", "log/service.log", "log/webui.log", "log/libman.log", "log/diagnose.log"];
   let out = await runDiagnostics(); // 置顶实时诊断，一眼定位工具未就绪原因
   for (const f of files) {
     try {
