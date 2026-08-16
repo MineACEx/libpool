@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="https://raw.githubusercontent.com/MineACEx/libpool/master/webroot/icons/icon.png" width="112" height="112" alt="LibPool" />
+  <img src="https://raw.githubusercontent.com/MineACEx/libpool/master/webroot/icons/readme-icon.png" width="112" height="112" alt="LibPool" />
 </p>
 
 <h1 align="center">LibPool</h1>
